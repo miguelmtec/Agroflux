@@ -27,6 +27,7 @@ import { NovoLancamentoModal } from './components/NovoLancamentoModal';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { AuthModal } from './components/AuthModal';
 import { PainelMasterView } from './components/PainelMasterView';
+import { PlanoContasView } from './components/PlanoContasView';
 
 const MainAppContent: React.FC = () => {
   const { currentUser, authLoading, isMaster, acessoLiberado, statusAcesso, acessoAte, logout } = useFinance();
@@ -121,6 +122,8 @@ const MainAppContent: React.FC = () => {
         return <GrupoFamiliarView />;
       case 'fluxo-caixa':
         return <FluxoCaixaView />;
+      case 'plano-contas':
+        return <PlanoContasView />;
       case 'relatorios':
         return <RelatoriosView />;
       case 'documentos':

@@ -1,0 +1,117 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { sql } from '@vercel/postgres';
+import { jwtVerify } from 'jose';
+
+const secret = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'troque-esta-chave-antes-de-ir-para-producao'
+);
+const MASTER_EMAILS = (process.env.MASTER_EMAILS || 'miguel@mtec.tec.br')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+function isMasterEmail(email: string): boolean {
+  return MASTER_EMAILS.includes(String(email || '').trim().toLowerCase());
+}
+
+async function exigirMaster(req: VercelRequest): Promise<boolean> {
+  const token = (req as any).cookies?.session;
+  if (!token) return false;
+  let uid: string;
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    uid = payload.uid as string;
+  } catch {
+    return false;
+  }
+  const r = await sql`SELECT email FROM usuarios_auth WHERE id = ${uid}`;
+  if (r.rows.length === 0) return false;
+  return isMasterEmail(r.rows[0].email as string);
+}
+
+// GET  /api/admin/backup                 -> baixa um JSON com TODOS os clientes (backup completo)
+// GET  /api/admin/backup?familiaId=xxx   -> baixa um JSON só daquele cliente
+// GET  /api/admin/backup?familiaId=xxx&historico=1 -> lista os snapshots salvos daquele cliente
+// POST /api/admin/backup  { familiaId }  -> salva um snapshot manual daquele cliente na tabela backups
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const master = await exigirMaster(req);
+  if (!master) {
+    res.status(403).json({ error: 'Acesso restrito.' });
+    return;
+  }
+
+  if (req.method === 'GET') {
+    try {
+      const { familiaId, historico } = req.query as { familiaId?: string; historico?: string };
+
+      if (familiaId && historico) {
+        const r = await sql`
+          SELECT id, tipo, criado_em
+          FROM backups
+          WHERE familia_id = ${familiaId}
+          ORDER BY criado_em DESC
+          LIMIT 60
+        `;
+        res.status(200).json({ snapshots: r.rows });
+        return;
+      }
+
+      if (familiaId) {
+        const r = await sql`SELECT nome_familia, dados FROM familias WHERE id = ${familiaId}`;
+        if (r.rows.length === 0) {
+          res.status(404).json({ error: 'Cliente não encontrado.' });
+          return;
+        }
+        const nomeArquivo = `backup-${r.rows[0].nome_familia}-${new Date().toISOString().split('T')[0]}.json`;
+        res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
+        res.status(200).json({
+          nomeFamilia: r.rows[0].nome_familia,
+          exportadoEm: new Date().toISOString(),
+          dados: r.rows[0].dados,
+        });
+        return;
+      }
+
+      // Backup completo de todos os clientes
+      const r = await sql`SELECT id, nome_familia, dados FROM familias ORDER BY nome_familia`;
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="backup-completo-${new Date().toISOString().split('T')[0]}.json"`
+      );
+      res.status(200).json({
+        exportadoEm: new Date().toISOString(),
+        familias: r.rows,
+      });
+    } catch (err) {
+      console.error('Erro em /api/admin/backup GET:', err);
+      res.status(500).json({ error: 'Erro ao gerar backup.' });
+    }
+    return;
+  }
+
+  if (req.method === 'POST') {
+    try {
+      const { familiaId } = req.body || {};
+      if (!familiaId) {
+        res.status(400).json({ error: 'familiaId é obrigatório.' });
+        return;
+      }
+      const r = await sql`SELECT nome_familia, dados FROM familias WHERE id = ${familiaId}`;
+      if (r.rows.length === 0) {
+        res.status(404).json({ error: 'Cliente não encontrado.' });
+        return;
+      }
+      await sql`
+        INSERT INTO backups (familia_id, nome_familia, dados, tipo)
+        VALUES (${familiaId}, ${r.rows[0].nome_familia}, ${JSON.stringify(r.rows[0].dados)}::jsonb, 'manual')
+      `;
+      res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('Erro em /api/admin/backup POST:', err);
+      res.status(500).json({ error: 'Erro ao salvar snapshot.' });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Método não permitido.' });
+}

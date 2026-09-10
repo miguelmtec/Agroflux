@@ -17,6 +17,7 @@ import {
   EncerramentoMes,
   UserProfile,
   UserPermissions,
+  CategoriaPlanoContas,
 } from '../types';
 
 interface FinanceContextType {
@@ -45,6 +46,10 @@ interface FinanceContextType {
   updateFazenda: (id: string, data: Partial<Fazenda>) => void;
   deleteFazenda: (id: string) => void;
   toggleFazendaAtiva: (id: string) => void;
+  categoriasPlanoContas: CategoriaPlanoContas[];
+  addCategoriaPlanoContas: (categoria: Omit<CategoriaPlanoContas, 'id' | 'criadoEm'>) => void;
+  toggleCategoriaAtiva: (id: string) => void;
+  removerCategoriaPlanoContas: (id: string) => void;
 
   // User Management
   updateUsuarioNome: (id: string, novoNome: string) => void;
@@ -165,7 +170,46 @@ interface FamiliaDados {
   operacoes: OperacaoFinanceira[];
   auditorias: LogAuditoria[];
   encerramentos: EncerramentoMes[];
+  categoriasPlanoContas: CategoriaPlanoContas[];
 }
+
+const DESPESA_CATEGORIAS_PADRAO = [
+  'Produção Rural',
+  'Combustível & Lubrificantes',
+  'Manutenção de Máquinas',
+  'Moradia & Manutenção',
+  'Veículos Pessoais',
+  'Saúde & Seguros',
+  'Educação',
+  'Outros',
+];
+const RECEITA_CATEGORIAS_PADRAO = [
+  'Safra de Soja',
+  'Safra de Milho',
+  'Arrendamento de Terras',
+  'Rendimentos & Dividendos',
+  'Outras Receitas',
+];
+
+const categoriasPadrao = (): CategoriaPlanoContas[] => {
+  const hoje = new Date().toISOString().split('T')[0];
+  return [
+    ...DESPESA_CATEGORIAS_PADRAO.map((nome, i) => ({
+      id: `cat-desp-${i}`,
+      nome,
+      tipo: 'DESPESA' as const,
+      ativa: true,
+      criadoEm: hoje,
+    })),
+    ...RECEITA_CATEGORIAS_PADRAO.map((nome, i) => ({
+      id: `cat-rec-${i}`,
+      nome,
+      tipo: 'RECEITA' as const,
+      ativa: true,
+      criadoEm: hoje,
+    })),
+  ];
+};
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(true);
@@ -194,6 +238,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [operacoes, setOperacoes] = useState<OperacaoFinanceira[]>([]);
   const [auditorias, setAuditorias] = useState<LogAuditoria[]>([]);
   const [encerramentos, setEncerramentos] = useState<EncerramentoMes[]>([]);
+  const [categoriasPlanoContas, setCategoriasPlanoContas] = useState<CategoriaPlanoContas[]>([]);
 
   const [selectedMemberId, setSelectedMemberId] = useState<string>('TODOS');
 
@@ -216,6 +261,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setOperacoes(dados.operacoes || []);
     setAuditorias(dados.auditorias || []);
     setEncerramentos(dados.encerramentos || []);
+    setCategoriasPlanoContas(
+      dados.categoriasPlanoContas && dados.categoriasPlanoContas.length > 0
+        ? dados.categoriasPlanoContas
+        : categoriasPadrao()
+    );
     const meu = (dados.usuarios || []).find(
       (u) => u.emailGoogle.toLowerCase() === emailLogado.toLowerCase()
     );
@@ -260,6 +310,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       operacoes,
       auditorias,
       encerramentos,
+      categoriasPlanoContas,
     };
     const t = setTimeout(() => {
       api.salvarFamilia(payload).then((resp) => {
@@ -283,6 +334,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     operacoes,
     auditorias,
     encerramentos,
+    categoriasPlanoContas,
   ]);
 
   // Helper: Log audit action
@@ -1121,6 +1173,29 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   };
 
+  // Plano de Contas (categorias de despesa/receita)
+  const addCategoriaPlanoContas = (categoria: Omit<CategoriaPlanoContas, 'id' | 'criadoEm'>) => {
+    const nova: CategoriaPlanoContas = {
+      ...categoria,
+      id: `cat-${Date.now()}`,
+      criadoEm: new Date().toISOString().split('T')[0],
+    };
+    setCategoriasPlanoContas((prev) => [...prev, nova]);
+    addAuditLog('CRIAR', 'CategoriaPlanoContas', nova.id, `Nova categoria de ${nova.tipo.toLowerCase()}: ${nova.nome}`);
+  };
+
+  const toggleCategoriaAtiva = (id: string) => {
+    setCategoriasPlanoContas((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ativa: !c.ativa } : c))
+    );
+  };
+
+  const removerCategoriaPlanoContas = (id: string) => {
+    const found = categoriasPlanoContas.find((c) => c.id === id);
+    setCategoriasPlanoContas((prev) => prev.filter((c) => c.id !== id));
+    addAuditLog('EXCLUIR', 'CategoriaPlanoContas', id, `Categoria excluída: ${found?.nome}`);
+  };
+
   // User Management
   const updateUsuarioNome = (id: string, novoNome: string) => {
     setUsuarios((prev) =>
@@ -1347,6 +1422,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateFazenda,
         deleteFazenda,
         toggleFazendaAtiva,
+        categoriasPlanoContas,
+        addCategoriaPlanoContas,
+        toggleCategoriaAtiva,
+        removerCategoriaPlanoContas,
         updateUsuarioNome,
         updateUsuario,
         addUsuarioAutorizado,

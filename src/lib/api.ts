@@ -41,4 +41,10 @@ export const api = {
     plano?: string;
     observacoes?: string;
   }) => request('/admin/familias', { method: 'PUT', body: JSON.stringify(body) }),
+
+  adminBackupManual: (familiaId: string) =>
+    request('/admin/backup', { method: 'POST', body: JSON.stringify({ familiaId }) }),
+
+  adminHistoricoBackups: (familiaId: string) =>
+    request(`/admin/backup?familiaId=${familiaId}&historico=1`, { method: 'GET' }),
 };
