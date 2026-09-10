@@ -1,7 +1,29 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
-import { obterSessao } from '../_lib/session';
-import { isMasterEmail } from '../_lib/admin';
+import { jwtVerify } from 'jose';
+
+const secret = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'troque-esta-chave-antes-de-ir-para-producao'
+);
+const MASTER_EMAILS = (process.env.MASTER_EMAILS || 'miguel@mtec.tec.br')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+function isMasterEmail(email: string): boolean {
+  return MASTER_EMAILS.includes(String(email || '').trim().toLowerCase());
+}
+
+async function obterSessao(req: VercelRequest): Promise<{ uid: string; familiaId: string } | null> {
+  const token = (req as any).cookies?.session;
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    return { uid: payload.uid as string, familiaId: payload.familiaId as string };
+  } catch {
+    return null;
+  }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

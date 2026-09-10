@@ -31,6 +31,11 @@ import { PainelMasterView } from './components/PainelMasterView';
 const MainAppContent: React.FC = () => {
   const { currentUser, authLoading, isMaster, acessoLiberado, statusAcesso, acessoAte, logout } = useFinance();
   const [currentModule, setCurrentModule] = useState<string>('dashboard');
+
+  useEffect(() => {
+    if (isMaster) setCurrentModule('painel-master');
+  }, [isMaster]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNewTxModal, setShowNewTxModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -123,7 +128,7 @@ const MainAppContent: React.FC = () => {
       case 'administracao':
         return <AdministracaoView />;
       default:
-        return <DashboardView onNavigate={setCurrentModule} />;
+        return isMaster ? <PainelMasterView /> : <DashboardView onNavigate={setCurrentModule} />;
     }
   };
 

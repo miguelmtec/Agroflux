@@ -47,77 +47,75 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const pendingUsersCount = usuarios.filter((u) => u.status === 'Pendente').length;
 
-  const navGroups: { label: string; items: any[] }[] = [
-    {
-      label: 'Principal',
-      items: [
-        { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard, badge: null },
-        { id: 'lancamentos', label: 'Lançamentos', icon: Receipt, badge: null },
-        { id: 'agenda', label: 'Agenda Financeira', icon: CalendarDays, badge: null },
-      ],
-    },
-    {
-      label: 'Contas e pagamentos',
-      items: [
+  const navGroups: { label: string; items: any[] }[] = isMaster
+    ? [
         {
-          id: 'contas-pagar',
-          label: 'Contas a Pagar',
-          icon: ArrowDownCircle,
-          badge: pendingBillsCount > 0 ? pendingBillsCount : null,
-          badgeColor: 'bg-rose-100 text-rose-700',
+          label: 'Painel Master',
+          items: [{ id: 'painel-master', label: 'Meus Clientes', icon: ShieldCheck, badge: null }],
+        },
+      ]
+    : [
+        {
+          label: 'Principal',
+          items: [
+            { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard, badge: null },
+            { id: 'lancamentos', label: 'Lançamentos', icon: Receipt, badge: null },
+            { id: 'agenda', label: 'Agenda Financeira', icon: CalendarDays, badge: null },
+          ],
         },
         {
-          id: 'contas-receber',
-          label: 'Contas a Receber',
-          icon: ArrowUpCircle,
-          badge: pendingRevenuesCount > 0 ? pendingRevenuesCount : null,
-          badgeColor: 'bg-emerald-100 text-emerald-700',
+          label: 'Contas e pagamentos',
+          items: [
+            {
+              id: 'contas-pagar',
+              label: 'Contas a Pagar',
+              icon: ArrowDownCircle,
+              badge: pendingBillsCount > 0 ? pendingBillsCount : null,
+              badgeColor: 'bg-rose-100 text-rose-700',
+            },
+            {
+              id: 'contas-receber',
+              label: 'Contas a Receber',
+              icon: ArrowUpCircle,
+              badge: pendingRevenuesCount > 0 ? pendingRevenuesCount : null,
+              badgeColor: 'bg-emerald-100 text-emerald-700',
+            },
+            { id: 'bancos', label: 'Bancos & Contas', icon: Landmark, badge: null },
+            { id: 'cartoes', label: 'Cartões & Faturas', icon: CreditCard, badge: null },
+            { id: 'emprestimos', label: 'Empréstimos', icon: Building2, badge: null },
+            { id: 'recorrencias', label: 'Recorrências', icon: Repeat, badge: null },
+            { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: LineChart, badge: null },
+          ],
         },
-        { id: 'bancos', label: 'Bancos & Contas', icon: Landmark, badge: null },
-        { id: 'cartoes', label: 'Cartões & Faturas', icon: CreditCard, badge: null },
-        { id: 'emprestimos', label: 'Empréstimos', icon: Building2, badge: null },
-        { id: 'recorrencias', label: 'Recorrências', icon: Repeat, badge: null },
-        { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: LineChart, badge: null },
-      ],
-    },
-    {
-      label: 'Fazenda',
-      items: [
-        { id: 'operacoes', label: 'Operações Agrícolas', icon: Tractor, badge: null },
         {
-          id: 'fazendas',
-          label: 'Fazendas & Usuários',
-          icon: Trees,
-          badge: `${fazendas.length} faz.`,
-          badgeColor: 'bg-emerald-100 text-emerald-800 font-bold',
+          label: 'Fazenda',
+          items: [
+            { id: 'operacoes', label: 'Operações Agrícolas', icon: Tractor, badge: null },
+            {
+              id: 'fazendas',
+              label: 'Fazendas & Usuários',
+              icon: Trees,
+              badge: `${fazendas.length} faz.`,
+              badgeColor: 'bg-emerald-100 text-emerald-800 font-bold',
+            },
+          ],
         },
-      ],
-    },
-    {
-      label: 'Família e relatórios',
-      items: [
-        { id: 'grupo-familiar', label: 'Grupo Familiar', icon: Users, badge: null },
-        { id: 'relatorios', label: 'Relatórios', icon: FileSpreadsheet, badge: null },
-        { id: 'documentos', label: 'Documentos', icon: FileText, badge: null },
         {
-          id: 'administracao',
-          label: 'Administração',
-          icon: ShieldCheck,
-          badge: pendingUsersCount > 0 ? `${pendingUsersCount} pend.` : null,
-          badgeColor: 'bg-amber-100 text-amber-800 font-bold',
+          label: 'Família e relatórios',
+          items: [
+            { id: 'grupo-familiar', label: 'Grupo Familiar', icon: Users, badge: null },
+            { id: 'relatorios', label: 'Relatórios', icon: FileSpreadsheet, badge: null },
+            { id: 'documentos', label: 'Documentos', icon: FileText, badge: null },
+            {
+              id: 'administracao',
+              label: 'Administração',
+              icon: ShieldCheck,
+              badge: pendingUsersCount > 0 ? `${pendingUsersCount} pend.` : null,
+              badgeColor: 'bg-amber-100 text-amber-800 font-bold',
+            },
+          ],
         },
-      ],
-    },
-  ];
-
-  if (isMaster) {
-    navGroups.push({
-      label: 'Painel Master',
-      items: [
-        { id: 'painel-master', label: 'Meus Clientes', icon: ShieldCheck, badge: null },
-      ],
-    });
-  }
+      ];
 
   return (
     <>

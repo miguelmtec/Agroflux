@@ -1,8 +1,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
 import bcrypt from 'bcryptjs';
-import { criarCookieSessao } from '../_lib/session';
-import { isMasterEmail } from '../_lib/admin';
+import { SignJWT } from 'jose';
+
+const secret = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'troque-esta-chave-antes-de-ir-para-producao'
+);
+const MASTER_EMAILS = (process.env.MASTER_EMAILS || 'miguel@mtec.tec.br')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+function isMasterEmail(email: string): boolean {
+  return MASTER_EMAILS.includes(String(email || '').trim().toLowerCase());
+}
+
+async function criarCookieSessao(uid: string, familiaId: string): Promise<string> {
+  const token = await new SignJWT({ uid, familiaId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('30d')
+    .sign(secret);
+  return `session=${token}; HttpOnly; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=Lax; Secure`;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
