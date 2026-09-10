@@ -34,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { despesas, receitas, usuarios, fazendas, currentUser } = useFinance();
+  const { despesas, receitas, usuarios, fazendas, currentUser, isMaster } = useFinance();
 
   // Badges calculation
   const pendingBillsCount = despesas.filter(
@@ -109,6 +109,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
   ];
+
+  if (isMaster) {
+    navGroups.push({
+      label: 'Painel Master',
+      items: [
+        { id: 'painel-master', label: 'Meus Clientes', icon: ShieldCheck, badge: null },
+      ],
+    });
+  }
 
   return (
     <>

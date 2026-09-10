@@ -30,4 +30,15 @@ export const api = {
 
   salvarFamilia: (dados: unknown) =>
     request('/familia', { method: 'PUT', body: JSON.stringify({ dados }) }),
+
+  adminListarFamilias: () => request('/admin/familias', { method: 'GET' }),
+
+  adminAtualizarFamilia: (body: {
+    familiaId: string;
+    status?: string;
+    acessoAte?: string | null;
+    limiteUsuarios?: number;
+    plano?: string;
+    observacoes?: string;
+  }) => request('/admin/familias', { method: 'PUT', body: JSON.stringify(body) }),
 };

@@ -63,6 +63,11 @@ interface FinanceContextType {
   authLoading: boolean;
   familiaId: string | null;
   nomeFamilia: string;
+  isMaster: boolean;
+  acessoLiberado: boolean;
+  statusAcesso: string;
+  acessoAte: string | null;
+  limiteUsuarios: number;
   login: (email: string, senha: string) => Promise<{ success: boolean; message?: string }>;
   signUp: (
     email: string,
@@ -167,6 +172,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [familiaId, setFamiliaId] = useState<string | null>(null);
   const [nomeFamilia, setNomeFamilia] = useState<string>('');
   const [minhaEmail, setMinhaEmail] = useState<string>('');
+  const [isMaster, setIsMaster] = useState(false);
+  const [acessoLiberado, setAcessoLiberado] = useState(false);
+  const [statusAcesso, setStatusAcesso] = useState('pendente');
+  const [acessoAte, setAcessoAte] = useState<string | null>(null);
+  const [limiteUsuarios, setLimiteUsuarios] = useState(1);
 
   const [usuarios, setUsuarios] = useState<UsuarioAutorizado[]>([]);
   const [currentUser, setCurrentUser] = useState<UsuarioAutorizado | null>(null);
@@ -220,6 +230,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setFamiliaId(resp.data.familiaId);
         setNomeFamilia(resp.data.nomeFamilia || '');
         setMinhaEmail(resp.data.email || '');
+        setIsMaster(Boolean(resp.data.isMaster));
+        setAcessoLiberado(Boolean(resp.data.acessoLiberado));
+        setStatusAcesso(resp.data.statusAcesso || 'pendente');
+        setAcessoAte(resp.data.acessoAte || null);
+        setLimiteUsuarios(resp.data.limiteUsuarios || 1);
         aplicarDados(resp.data.dados, resp.data.email || '');
         hydratedRef.current = true;
       }
@@ -312,6 +327,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setFamiliaId(resp.data.familiaId);
     setNomeFamilia(resp.data.nomeFamilia || '');
     setMinhaEmail(email.trim().toLowerCase());
+    setIsMaster(Boolean(resp.data.isMaster));
+    setAcessoLiberado(Boolean(resp.data.acessoLiberado));
+    setStatusAcesso(resp.data.statusAcesso || 'pendente');
+    setAcessoAte(resp.data.acessoAte || null);
+    setLimiteUsuarios(resp.data.limiteUsuarios || 1);
     aplicarDados(resp.data.dados, email);
     hydratedRef.current = true;
     return { success: true };
@@ -325,6 +345,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setFamiliaId(resp.data.familiaId);
     setNomeFamilia(resp.data.nomeFamilia || '');
     setMinhaEmail(email.trim().toLowerCase());
+    setIsMaster(Boolean(resp.data.isMaster));
+    setAcessoLiberado(Boolean(resp.data.acessoLiberado));
+    setStatusAcesso(resp.data.statusAcesso || 'pendente');
+    setAcessoAte(resp.data.acessoAte || null);
+    setLimiteUsuarios(resp.data.limiteUsuarios || 1);
     aplicarDados(resp.data.dados, email);
     hydratedRef.current = true;
     return { success: true };
@@ -1275,6 +1300,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         authLoading,
         familiaId,
         nomeFamilia,
+        isMaster,
+        acessoLiberado,
+        statusAcesso,
+        acessoAte,
+        limiteUsuarios,
         login,
         signUp,
         logout,

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
 import { obterSessao } from './_lib/session';
+import { isMasterEmail } from './_lib/admin';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sessao = await obterSessao(req);
@@ -16,6 +17,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(400).json({ error: 'Nenhum dado enviado.' });
         return;
       }
+
+      const infoResult = await sql`
+        SELECT ua.email, f.status, f.acesso_ate, f.limite_usuarios
+        FROM usuarios_auth ua
+        JOIN familias f ON f.id = ua.familia_id
+        WHERE ua.id = ${sessao.uid}
+      `;
+      if (infoResult.rows.length === 0) {
+        res.status(401).json({ error: 'Sessão inválida.' });
+        return;
+      }
+      const info = infoResult.rows[0];
+      const master = isMasterEmail(info.email as string);
+      const hoje = new Date().toISOString().split('T')[0];
+      const expirou = !master && info.acesso_ate && String(info.acesso_ate).split('T')[0] < hoje;
+      const acessoLiberado = master || (info.status === 'ativo' && !expirou);
+
+      if (!acessoLiberado) {
+        res.status(403).json({ error: 'Seu acesso não está liberado no momento.' });
+        return;
+      }
+
+      const totalUsuarios = Array.isArray(dados?.usuarios) ? dados.usuarios.length : 0;
+      if (!master && totalUsuarios > info.limite_usuarios) {
+        res.status(403).json({
+          error: `Seu plano permite até ${info.limite_usuarios} usuário(s). Fale com o suporte para aumentar o limite.`,
+        });
+        return;
+      }
+
       await sql`
         UPDATE familias
         SET dados = ${JSON.stringify(dados)}::jsonb

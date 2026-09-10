@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
 import bcrypt from 'bcryptjs';
 import { criarCookieSessao } from '../_lib/session';
+import { isMasterEmail } from '../_lib/admin';
 
 const dadosIniciais = (nomeUsuario: string, email: string) => ({
   usuarios: [
@@ -61,6 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
+    const master = isMasterEmail(cleanEmail);
 
     const existente = await sql`SELECT id FROM usuarios_auth WHERE email = ${cleanEmail}`;
     if (existente.rows.length > 0) {
@@ -70,10 +72,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const dados = dadosIniciais(String(nomeUsuario).trim(), cleanEmail);
 
+    // Conta master nasce ativa e sem limite prático; clientes novos nascem
+    // "pendente" até você liberar manualmente pelo Painel Master.
     const familia = await sql`
-      INSERT INTO familias (nome_familia, dados)
-      VALUES (${String(nomeFamilia).trim()}, ${JSON.stringify(dados)}::jsonb)
-      RETURNING id, nome_familia
+      INSERT INTO familias (nome_familia, dados, status, limite_usuarios)
+      VALUES (
+        ${String(nomeFamilia).trim()},
+        ${JSON.stringify(dados)}::jsonb,
+        ${master ? 'ativo' : 'pendente'},
+        ${master ? 999 : 1}
+      )
+      RETURNING id, nome_familia, status, acesso_ate, limite_usuarios, plano
     `;
     const familiaId = familia.rows[0].id as string;
 
@@ -91,6 +100,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       familiaId,
       nomeFamilia: familia.rows[0].nome_familia,
       dados,
+      isMaster: master,
+      acessoLiberado: master || familia.rows[0].status === 'ativo',
+      statusAcesso: familia.rows[0].status,
+      acessoAte: familia.rows[0].acesso_ate,
+      limiteUsuarios: familia.rows[0].limite_usuarios,
     });
   } catch (err) {
     console.error('Erro em /api/auth/signup:', err);

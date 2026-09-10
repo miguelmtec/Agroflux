@@ -26,9 +26,10 @@ import { FazendasUsuariosView } from './components/FazendasUsuariosView';
 import { NovoLancamentoModal } from './components/NovoLancamentoModal';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { AuthModal } from './components/AuthModal';
+import { PainelMasterView } from './components/PainelMasterView';
 
 const MainAppContent: React.FC = () => {
-  const { currentUser, authLoading } = useFinance();
+  const { currentUser, authLoading, isMaster, acessoLiberado, statusAcesso, acessoAte, logout } = useFinance();
   const [currentModule, setCurrentModule] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNewTxModal, setShowNewTxModal] = useState(false);
@@ -59,8 +60,36 @@ const MainAppContent: React.FC = () => {
     return <AuthModal isOpen fullScreen />;
   }
 
+  if (!isMaster && !acessoLiberado) {
+    const mensagem =
+      statusAcesso === 'expirado'
+        ? `Seu acesso expirou${acessoAte ? ` em ${new Date(acessoAte).toLocaleDateString('pt-BR')}` : ''}.`
+        : statusAcesso === 'bloqueado'
+        ? 'Seu acesso foi bloqueado.'
+        : 'Sua conta foi criada e está aguardando liberação de acesso.';
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-stone-50 p-6">
+        <div className="bg-white border border-stone-200 rounded-2xl shadow-xs p-8 max-w-sm w-full text-center">
+          <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+            !
+          </div>
+          <h2 className="font-bold text-stone-900 mb-2">Acesso pendente</h2>
+          <p className="text-sm text-stone-600 mb-6">{mensagem} Fale com quem te vendeu o sistema para liberar.</p>
+          <button
+            onClick={logout}
+            className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const renderModule = () => {
     switch (currentModule) {
+      case 'painel-master':
+        return isMaster ? <PainelMasterView /> : <DashboardView onNavigate={setCurrentModule} />;
       case 'dashboard':
         return <DashboardView onNavigate={setCurrentModule} />;
       case 'lancamentos':
