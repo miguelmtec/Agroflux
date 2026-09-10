@@ -1,0 +1,6 @@
+{
+  "name": "AgroFlux Gestão Familiar",
+  "description": "Sistema privado de gestão financeira e patrimonial familiar para o agronegócio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
