@@ -27,6 +27,7 @@ export const PainelMasterView: React.FC = () => {
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
   const [backupId, setBackupId] = useState<string | null>(null);
   const [modalUsuariosFamilia, setModalUsuariosFamilia] = useState<FamiliaAdmin | null>(null);
+  const [modalBackupsFamilia, setModalBackupsFamilia] = useState<FamiliaAdmin | null>(null);
   const [rascunhos, setRascunhos] = useState<Record<string, Partial<FamiliaAdmin>>>({});
 
   const carregar = async () => {
@@ -155,6 +156,12 @@ export const PainelMasterView: React.FC = () => {
                   >
                     <Users className="w-3 h-3" /> Usuários ({f.total_usuarios})
                   </button>
+                  <button
+                    onClick={() => setModalBackupsFamilia(f)}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-600 hover:text-stone-900 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1"
+                  >
+                    <DatabaseBackup className="w-3 h-3" /> Ver backups
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
@@ -235,6 +242,10 @@ export const PainelMasterView: React.FC = () => {
 
       {modalUsuariosFamilia && (
         <ModalUsuariosFamilia familia={modalUsuariosFamilia} onClose={() => setModalUsuariosFamilia(null)} onMudou={carregar} />
+      )}
+
+      {modalBackupsFamilia && (
+        <ModalBackupsFamilia familia={modalBackupsFamilia} onClose={() => setModalBackupsFamilia(null)} />
       )}
     </div>
   );
@@ -346,6 +357,102 @@ const ModalUsuariosFamilia: React.FC<{ familia: FamiliaAdmin; onClose: () => voi
                       Excluir
                     </button>
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const tipoStyle: Record<string, string> = {
+  automatico: 'bg-stone-100 text-stone-600',
+  manual: 'bg-blue-100 text-blue-700',
+  'pre-restauracao': 'bg-amber-100 text-amber-800',
+};
+
+const tipoLabel: Record<string, string> = {
+  automatico: 'Automático (diário)',
+  manual: 'Manual',
+  'pre-restauracao': 'Antes de uma restauração',
+};
+
+const ModalBackupsFamilia: React.FC<{ familia: FamiliaAdmin; onClose: () => void }> = ({ familia, onClose }) => {
+  const [snapshots, setSnapshots] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [restaurandoId, setRestaurandoId] = useState<string | null>(null);
+
+  const carregarSnapshots = async () => {
+    setLoading(true);
+    const resp = await api.adminHistoricoBackups(familia.id);
+    if (resp.ok) setSnapshots(resp.data.snapshots || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    carregarSnapshots();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleRestaurar = async (backupId: string, dataCriacao: string) => {
+    const dataFormatada = new Date(dataCriacao).toLocaleString('pt-BR');
+    if (
+      !confirm(
+        `Restaurar o backup de ${dataFormatada} para ${familia.nome_familia}?\n\n` +
+          `Isso vai SUBSTITUIR todos os dados atuais dessa família pelos dados salvos nesse backup. ` +
+          `O estado atual é salvo automaticamente antes, então dá pra desfazer se precisar.`
+      )
+    )
+      return;
+    setRestaurandoId(backupId);
+    const resp = await api.adminRestaurarBackup(backupId);
+    setRestaurandoId(null);
+    if (!resp.ok) {
+      alert(resp.data?.error || 'Erro ao restaurar backup.');
+      return;
+    }
+    alert('Backup restaurado com sucesso.');
+    carregarSnapshots();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-lg overflow-hidden my-6">
+        <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
+          <div>
+            <h2 className="font-extrabold text-sm">Backups de {familia.nome_familia}</h2>
+            <p className="text-[11px] text-stone-300">Snapshots automáticos (diários) e manuais</p>
+          </div>
+          <button onClick={onClose} className="text-stone-400 hover:text-white">✕</button>
+        </div>
+
+        <div className="p-5 text-xs">
+          {loading ? (
+            <p className="text-stone-500">Carregando...</p>
+          ) : snapshots.length === 0 ? (
+            <p className="text-stone-500">
+              Nenhum snapshot salvo ainda para esse cliente. Eles aparecem aqui depois do primeiro backup automático
+              (diário) ou de um "Salvar snapshot agora" manual.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {snapshots.map((s) => (
+                <div key={s.id} className="flex items-center justify-between border border-stone-200 rounded-xl p-3">
+                  <div>
+                    <p className="font-semibold text-stone-900">{new Date(s.criado_em).toLocaleString('pt-BR')}</p>
+                    <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${tipoStyle[s.tipo] || 'bg-stone-100 text-stone-600'}`}>
+                      {tipoLabel[s.tipo] || s.tipo}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleRestaurar(s.id, s.criado_em)}
+                    disabled={restaurandoId === s.id}
+                    className="px-3 py-1.5 text-[11px] font-bold text-white bg-stone-900 hover:bg-stone-800 rounded-lg disabled:opacity-50"
+                  >
+                    {restaurandoId === s.id ? 'Restaurando...' : 'Restaurar'}
+                  </button>
                 </div>
               ))}
             </div>

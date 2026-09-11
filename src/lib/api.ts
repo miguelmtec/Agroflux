@@ -48,6 +48,9 @@ export const api = {
   adminHistoricoBackups: (familiaId: string) =>
     request(`/admin/backup?familiaId=${familiaId}&historico=1`, { method: 'GET' }),
 
+  adminRestaurarBackup: (backupId: string) =>
+    request('/admin/backup', { method: 'POST', body: JSON.stringify({ acao: 'restaurar', backupId }) }),
+
   convidarUsuario: (body: { nome: string; email: string; perfil: string; integranteId?: string }) =>
     request('/usuarios/convidar', { method: 'POST', body: JSON.stringify(body) }),
 

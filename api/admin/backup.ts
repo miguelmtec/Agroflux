@@ -95,7 +95,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'POST') {
     try {
-      const { familiaId } = req.body || {};
+      const { familiaId, acao, backupId } = req.body || {};
+
+      if (acao === 'restaurar') {
+        if (!backupId) {
+          res.status(400).json({ error: 'backupId é obrigatório.' });
+          return;
+        }
+        const snapshot = await sql`SELECT familia_id, nome_familia, dados FROM backups WHERE id = ${backupId}`;
+        if (snapshot.rows.length === 0) {
+          res.status(404).json({ error: 'Snapshot não encontrado.' });
+          return;
+        }
+        const { familia_id, nome_familia, dados } = snapshot.rows[0];
+
+        // Antes de sobrescrever, guarda o estado ATUAL como um novo snapshot
+        // (assim, restaurar também pode ser desfeito se for engano).
+        const atual = await sql`SELECT dados FROM familias WHERE id = ${familia_id}`;
+        if (atual.rows.length > 0) {
+          await sql`
+            INSERT INTO backups (familia_id, nome_familia, dados, tipo)
+            VALUES (${familia_id}, ${nome_familia}, ${JSON.stringify(atual.rows[0].dados)}::jsonb, 'pre-restauracao')
+          `;
+        }
+
+        await sql`UPDATE familias SET dados = ${JSON.stringify(dados)}::jsonb WHERE id = ${familia_id}`;
+        res.status(200).json({ success: true });
+        return;
+      }
+
       if (!familiaId) {
         res.status(400).json({ error: 'familiaId é obrigatório.' });
         return;
