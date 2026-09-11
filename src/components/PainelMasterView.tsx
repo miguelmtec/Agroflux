@@ -26,6 +26,7 @@ export const PainelMasterView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
   const [backupId, setBackupId] = useState<string | null>(null);
+  const [modalUsuariosFamilia, setModalUsuariosFamilia] = useState<FamiliaAdmin | null>(null);
   const [rascunhos, setRascunhos] = useState<Record<string, Partial<FamiliaAdmin>>>({});
 
   const carregar = async () => {
@@ -148,6 +149,12 @@ export const PainelMasterView: React.FC = () => {
                     <DatabaseBackup className="w-3 h-3" />
                     {backupId === f.id ? 'Salvando...' : 'Salvar snapshot agora'}
                   </button>
+                  <button
+                    onClick={() => setModalUsuariosFamilia(f)}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-600 hover:text-stone-900 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1"
+                  >
+                    <Users className="w-3 h-3" /> Usuários ({f.total_usuarios})
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
@@ -225,6 +232,126 @@ export const PainelMasterView: React.FC = () => {
           })}
         </div>
       )}
+
+      {modalUsuariosFamilia && (
+        <ModalUsuariosFamilia familia={modalUsuariosFamilia} onClose={() => setModalUsuariosFamilia(null)} onMudou={carregar} />
+      )}
+    </div>
+  );
+};
+
+const ModalUsuariosFamilia: React.FC<{ familia: FamiliaAdmin; onClose: () => void; onMudou: () => void }> = ({
+  familia,
+  onClose,
+  onMudou,
+}) => {
+  const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processandoId, setProcessandoId] = useState<string | null>(null);
+  const [senhaGerada, setSenhaGerada] = useState<{ email: string; senha: string } | null>(null);
+
+  const carregarUsuarios = async () => {
+    setLoading(true);
+    const resp = await api.adminListarUsuarios(familia.id);
+    if (resp.ok) setUsuarios(resp.data.usuarios || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    carregarUsuarios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleResetarSenha = async (usuarioAuthId: string, email: string) => {
+    if (!confirm(`Gerar uma nova senha provisória para ${email}? A senha atual dela deixa de funcionar.`)) return;
+    setProcessandoId(usuarioAuthId);
+    const resp = await api.adminResetarSenha(familia.id, usuarioAuthId);
+    setProcessandoId(null);
+    if (!resp.ok) {
+      alert(resp.data?.error || 'Erro ao resetar senha.');
+      return;
+    }
+    setSenhaGerada({ email, senha: resp.data.senhaTemporaria });
+    carregarUsuarios();
+  };
+
+  const handleExcluir = async (usuarioAuthId: string, email: string) => {
+    if (!confirm(`Excluir permanentemente o acesso de ${email}? Essa ação não pode ser desfeita.`)) return;
+    setProcessandoId(usuarioAuthId);
+    const resp = await api.adminExcluirUsuario(familia.id, usuarioAuthId);
+    setProcessandoId(null);
+    if (!resp.ok) {
+      alert(resp.data?.error || 'Erro ao excluir usuário.');
+      return;
+    }
+    carregarUsuarios();
+    onMudou();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-lg overflow-hidden my-6">
+        <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
+          <div>
+            <h2 className="font-extrabold text-sm">Usuários de {familia.nome_familia}</h2>
+            <p className="text-[11px] text-stone-300">Limite do plano: {familia.limite_usuarios} usuário(s)</p>
+          </div>
+          <button onClick={onClose} className="text-stone-400 hover:text-white">✕</button>
+        </div>
+
+        <div className="p-5 text-xs">
+          {senhaGerada && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4">
+              <p className="font-bold text-emerald-900 mb-1">Nova senha gerada para {senhaGerada.email}</p>
+              <p className="font-mono text-emerald-800 text-sm">{senhaGerada.senha}</p>
+              <p className="text-[11px] text-emerald-700 mt-1">
+                Passe pra pessoa agora — essa senha só aparece essa vez. Ela vai ser obrigada a trocar no próximo acesso.
+              </p>
+              <button onClick={() => setSenhaGerada(null)} className="text-[11px] font-semibold text-emerald-800 underline mt-1">
+                Fechar aviso
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <p className="text-stone-500">Carregando...</p>
+          ) : usuarios.length === 0 ? (
+            <p className="text-stone-500">Nenhum usuário encontrado.</p>
+          ) : (
+            <div className="space-y-2">
+              {usuarios.map((u) => (
+                <div key={u.id} className="flex items-center justify-between border border-stone-200 rounded-xl p-3">
+                  <div>
+                    <p className="font-semibold text-stone-900">{u.nome}</p>
+                    <p className="text-stone-500">{u.email}</p>
+                    {u.senha_provisoria && (
+                      <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                        Aguardando 1º acesso
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleResetarSenha(u.id, u.email)}
+                      disabled={processandoId === u.id}
+                      className="px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg disabled:opacity-50"
+                    >
+                      Resetar senha
+                    </button>
+                    <button
+                      onClick={() => handleExcluir(u.id, u.email)}
+                      disabled={processandoId === u.id}
+                      className="px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg disabled:opacity-50"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

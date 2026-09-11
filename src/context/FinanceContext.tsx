@@ -184,7 +184,7 @@ interface FinanceContextType {
   // Admin User & Permissions Management
   aprovarUsuario: (id: string, perfil: UserProfile, permissoes?: Partial<UserPermissions>) => void;
   bloquearUsuario: (id: string) => void;
-  removerUsuario: (id: string) => void;
+  removerUsuario: (id: string) => Promise<{ success: boolean; message?: string }>;
   atualizarPerfilUsuario: (id: string, perfil: UserProfile) => void;
   atualizarPermissoesUsuario: (id: string, permissoes: UserPermissions) => void;
 
@@ -1192,8 +1192,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   };
 
-  const removerUsuario = (id: string) => {
+  const removerUsuario = async (id: string): Promise<{ success: boolean; message?: string }> => {
     const user = usuarios.find((u) => u.id === id);
+    const resp = await api.excluirUsuario(id);
+    if (!resp.ok) {
+      return { success: false, message: resp.data?.error || 'Não foi possível excluir esse usuário.' };
+    }
     setUsuarios((prev) => prev.filter((u) => u.id !== id));
     addAuditLog(
       'EXCLUIR',
@@ -1201,6 +1205,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id,
       `Acesso do usuário "${user?.nome}" (${user?.emailGoogle}) foi removido permanentemente.`
     );
+    return { success: true };
   };
 
   const atualizarPerfilUsuario = (id: string, perfil: UserProfile) => {

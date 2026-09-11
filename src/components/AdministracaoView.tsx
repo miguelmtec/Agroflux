@@ -28,6 +28,7 @@ export const AdministracaoView: React.FC = () => {
     integrantes,
     approveUsuario,
     blockUsuario,
+    removerUsuario,
     updateUsuarioPerfil,
     updateUsuarioNome,
     addUsuarioPendente,
@@ -268,6 +269,16 @@ export const AdministracaoView: React.FC = () => {
                               Bloquear
                             </button>
                           )}
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Excluir o acesso de "${usr.nome}" permanentemente? Essa ação não pode ser desfeita.`)) return;
+                              const resultado = await removerUsuario(usr.id);
+                              if (!resultado.success) alert(resultado.message);
+                            }}
+                            className="px-3 py-1.5 text-xs font-bold text-stone-500 hover:bg-stone-100 border border-stone-200 rounded-xl transition-colors"
+                          >
+                            Excluir
+                          </button>
                         </div>
                       )}
                     </div>

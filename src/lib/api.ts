@@ -53,4 +53,22 @@ export const api = {
 
   trocarSenha: (body: { senhaAtual: string; novaSenha: string }) =>
     request('/auth/trocar-senha', { method: 'POST', body: JSON.stringify(body) }),
+
+  excluirUsuario: (usuarioId: string) =>
+    request('/usuarios/excluir', { method: 'POST', body: JSON.stringify({ usuarioId }) }),
+
+  adminListarUsuarios: (familiaId: string) =>
+    request(`/admin/usuarios?familiaId=${familiaId}`, { method: 'GET' }),
+
+  adminResetarSenha: (familiaId: string, usuarioAuthId: string) =>
+    request('/admin/usuarios', {
+      method: 'POST',
+      body: JSON.stringify({ acao: 'resetar-senha', familiaId, usuarioAuthId }),
+    }),
+
+  adminExcluirUsuario: (familiaId: string, usuarioAuthId: string) =>
+    request('/admin/usuarios', {
+      method: 'POST',
+      body: JSON.stringify({ acao: 'excluir', familiaId, usuarioAuthId }),
+    }),
 };

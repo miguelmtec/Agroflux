@@ -44,6 +44,7 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
     updateUsuario,
     addUsuarioAutorizado,
     convidarUsuario,
+    removerUsuario,
     integrantes,
     updateIntegrante,
     receitas,
@@ -698,6 +699,17 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
                           <UserCheck className="w-4 h-4" />
                         </button>
                       )}
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Excluir o acesso de "${usr.nome}" permanentemente? Essa ação não pode ser desfeita.`)) return;
+                          const resultado = await removerUsuario(usr.id);
+                          if (!resultado.success) alert(resultado.message);
+                        }}
+                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Excluir usuário"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 );
