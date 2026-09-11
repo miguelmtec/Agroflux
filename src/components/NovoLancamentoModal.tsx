@@ -17,7 +17,7 @@ interface NovoLancamentoModalProps {
 }
 
 export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen, onClose }) => {
-  const { integrantes, fazendas, contas, cartoes, categoriasPlanoContas, addDespesa, addReceita, addTransferencia } = useFinance();
+  const { integrantes, fazendas, contas, cartoes, categoriasPlanoContas, selectedMemberId, addDespesa, addReceita, addTransferencia } = useFinance();
 
   const [tipo, setTipo] = useState<'DESPESA' | 'RECEITA' | 'TRANSFERENCIA'>('DESPESA');
   const [meioPagamento, setMeioPagamento] = useState<'A_DEFINIR' | 'CONTA' | 'CARTAO'>('A_DEFINIR');
@@ -30,7 +30,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
   const [dataVencimento, setDataVencimento] = useState(() => new Date().toISOString().split('T')[0]);
   const [dataCompetencia, setDataCompetencia] = useState(dataVencimento);
   const [competenciaEditada, setCompetenciaEditada] = useState(false);
-  const [integranteId, setIntegranteId] = useState(integrantes[0]?.id || '');
+  const [integranteId, setIntegranteId] = useState(
+    selectedMemberId && selectedMemberId !== 'TODOS' ? selectedMemberId : integrantes[0]?.id || ''
+  );
   const [fazendaId, setFazendaId] = useState('');
   const [contaId, setContaId] = useState('');
   const [cartaoId, setCartaoId] = useState(cartoes[0]?.id || '');
@@ -53,11 +55,16 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
     if (!competenciaEditada) setDataCompetencia(dataVencimento);
   }, [dataVencimento, competenciaEditada]);
 
-  // Seleciona a primeira categoria disponível assim que o modal abre
+  // Seleciona a primeira categoria disponível, e o integrante do filtro
+  // atualmente selecionado no topo (se houver um específico), toda vez que o modal abre
   useEffect(() => {
-    if (isOpen && !categoria) {
+    if (!isOpen) return;
+    if (!categoria) {
       const primeira = categoriasPlanoContas.find((c) => c.tipo === tipo && c.ativa);
       if (primeira) setCategoria(primeira.nome);
+    }
+    if (selectedMemberId && selectedMemberId !== 'TODOS') {
+      setIntegranteId(selectedMemberId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, categoriasPlanoContas]);
