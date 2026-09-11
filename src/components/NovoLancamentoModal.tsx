@@ -62,6 +62,7 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, categoriasPlanoContas]);
 
+<<<<<<< HEAD
   // Se a conta ou cartão escolhido tiver um titular vinculado, o lançamento
   // já "casa" automaticamente com esse integrante, sem precisar escolher de novo.
   useEffect(() => {
@@ -78,6 +79,8 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contaId, cartaoId, meioPagamento, tipo]);
 
+=======
+>>>>>>> 85076f70df765555c99dabc202ebdec95b4bf727
   const mostrarIntegrante = integrantes.length > 1;
   const mostrarFazenda = fazendas.length > 1;
 
