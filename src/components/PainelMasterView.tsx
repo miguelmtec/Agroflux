@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { ShieldCheck, RefreshCw, Users, Save } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Users, Save, Download, DatabaseBackup } from 'lucide-react';
 
 interface FamiliaAdmin {
   id: string;
@@ -25,6 +25,7 @@ export const PainelMasterView: React.FC = () => {
   const [familias, setFamilias] = useState<FamiliaAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvandoId, setSalvandoId] = useState<string | null>(null);
+  const [backupId, setBackupId] = useState<string | null>(null);
   const [rascunhos, setRascunhos] = useState<Record<string, Partial<FamiliaAdmin>>>({});
 
   const carregar = async () => {
@@ -71,6 +72,17 @@ export const PainelMasterView: React.FC = () => {
     }
   };
 
+  const salvarSnapshot = async (familiaId: string) => {
+    setBackupId(familiaId);
+    const resp = await api.adminBackupManual(familiaId);
+    setBackupId(null);
+    if (resp.ok) {
+      alert('Snapshot salvo com sucesso.');
+    } else {
+      alert(resp.data?.error || 'Erro ao salvar snapshot.');
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-5">
@@ -83,12 +95,20 @@ export const PainelMasterView: React.FC = () => {
             <p className="text-xs text-stone-500">Clientes cadastrados e liberação de acesso</p>
           </div>
         </div>
-        <button
-          onClick={carregar}
-          className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-lg px-3 py-1.5"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/api/admin/backup"
+            className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-lg px-3 py-1.5"
+          >
+            <Download className="w-3.5 h-3.5" /> Backup de todos
+          </a>
+          <button
+            onClick={carregar}
+            className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-lg px-3 py-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -111,6 +131,23 @@ export const PainelMasterView: React.FC = () => {
                   <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${statusStyle[String(valorAtual(f, 'status'))] || 'bg-stone-100 text-stone-700'}`}>
                     {String(valorAtual(f, 'status')).toUpperCase()}
                   </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <a
+                    href={`/api/admin/backup?familiaId=${f.id}`}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-600 hover:text-stone-900 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1"
+                  >
+                    <Download className="w-3 h-3" /> Baixar backup
+                  </a>
+                  <button
+                    onClick={() => salvarSnapshot(f.id)}
+                    disabled={backupId === f.id}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-stone-600 hover:text-stone-900 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1 disabled:opacity-50"
+                  >
+                    <DatabaseBackup className="w-3 h-3" />
+                    {backupId === f.id ? 'Salvando...' : 'Salvar snapshot agora'}
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">

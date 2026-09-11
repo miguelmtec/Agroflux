@@ -4,12 +4,53 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 import { CreditCard, Plus, Calendar, DollarSign, CheckCircle2, ChevronRight, X, AlertCircle } from 'lucide-react';
 
 export const CartoesView: React.FC = () => {
-  const { cartoes, despesas, contas, integrantes, pagarFaturaCartao } = useFinance();
+  const { cartoes, despesas, contas, integrantes, pagarFaturaCartao, addCartao } = useFinance();
 
   const [selectedCardId, setSelectedCardId] = useState<string>(cartoes[0]?.id || '');
   const [showPayModal, setShowPayModal] = useState(false);
+  const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [payContaId, setPayContaId] = useState(contas[0]?.id || '');
   const [payValor, setPayValor] = useState('');
+
+  // Novo cartão
+  const [novoNome, setNovoNome] = useState('');
+  const [novoBanco, setNovoBanco] = useState('');
+  const [novaBandeira, setNovaBandeira] = useState('Visa');
+  const [novoFinal, setNovoFinal] = useState('');
+  const [novoIntegranteId, setNovoIntegranteId] = useState(integrantes[0]?.id || '');
+  const [novoLimite, setNovoLimite] = useState('');
+  const [novoFechamento, setNovoFechamento] = useState('20');
+  const [novoVencimento, setNovoVencimento] = useState('27');
+  const [novaContaPagamentoId, setNovaContaPagamentoId] = useState(contas[0]?.id || '');
+
+  const handleNovoCartao = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoNome || !novoBanco) {
+      alert('Preencha ao menos o nome e o banco do cartão.');
+      return;
+    }
+    const integrante = integrantes.find((i) => i.id === novoIntegranteId);
+    addCartao({
+      nome: novoNome,
+      banco: novoBanco,
+      bandeira: novaBandeira,
+      finalCartao: novoFinal,
+      titular: integrante?.nome || 'Grupo Familiar',
+      integranteId: novoIntegranteId || undefined,
+      limite: parseFloat(novoLimite.replace(',', '.')) || 0,
+      melhorDiaCompra: Math.max(1, Number(novoFechamento) - 5),
+      diaFechamento: Number(novoFechamento) || 20,
+      diaVencimento: Number(novoVencimento) || 27,
+      contaPagamentoId: novaContaPagamentoId,
+      ativa: true,
+      cor: '#6d28d9',
+    });
+    setShowNewCardModal(false);
+    setNovoNome('');
+    setNovoBanco('');
+    setNovoFinal('');
+    setNovoLimite('');
+  };
 
   const selectedCard = cartoes.find((c) => c.id === selectedCardId) || cartoes[0];
 
@@ -23,7 +64,7 @@ export const CartoesView: React.FC = () => {
     .reduce((sum, d) => sum + d.valor, 0);
 
   const limiteUtilizado = totalFaturaAberta;
-  const limiteDisponivel = selectedCard ? Math.max(0, selectedCard.limiteTotal - limiteUtilizado) : 0;
+  const limiteDisponivel = selectedCard ? Math.max(0, selectedCard.limite - limiteUtilizado) : 0;
 
   // Installment purchases (parceladas)
   const comprasParceladas = cardDespesas.filter(
@@ -54,18 +95,26 @@ export const CartoesView: React.FC = () => {
           </p>
         </div>
 
-        {selectedCard && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setPayValor(totalFaturaAberta.toFixed(2));
-              setShowPayModal(true);
-            }}
-            disabled={totalFaturaAberta <= 0}
-            className="flex items-center gap-1.5 bg-purple-700 hover:bg-purple-800 disabled:bg-stone-300 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-colors shadow-2xs"
+            onClick={() => setShowNewCardModal(true)}
+            className="flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-colors shadow-2xs"
           >
-            <CheckCircle2 className="w-4 h-4" /> Pagar Fatura do Cartão
+            <Plus className="w-4 h-4" /> Novo Cartão
           </button>
-        )}
+          {selectedCard && (
+            <button
+              onClick={() => {
+                setPayValor(totalFaturaAberta.toFixed(2));
+                setShowPayModal(true);
+              }}
+              disabled={totalFaturaAberta <= 0}
+              className="flex items-center gap-1.5 bg-purple-700 hover:bg-purple-800 disabled:bg-stone-300 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-colors shadow-2xs"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Pagar Fatura do Cartão
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Cards Selector Bar */}
@@ -113,7 +162,7 @@ export const CartoesView: React.FC = () => {
                     Fecha dia {card.diaFechamento} • Vence dia {card.diaVencimento}
                   </span>
                   <span className={isSelected ? 'text-emerald-400' : 'text-emerald-600'}>
-                    Limite: {formatCurrency(card.limiteTotal)}
+                    Limite: {formatCurrency(card.limite)}
                   </span>
                 </div>
               </div>
@@ -135,13 +184,13 @@ export const CartoesView: React.FC = () => {
               <div>
                 <div className="flex justify-between text-xs text-stone-500 mb-1">
                   <span>Limite Total:</span>
-                  <span className="font-bold text-stone-800">{formatCurrency(selectedCard.limiteTotal)}</span>
+                  <span className="font-bold text-stone-800">{formatCurrency(selectedCard.limite)}</span>
                 </div>
                 <div className="w-full bg-stone-100 rounded-full h-2.5 overflow-hidden">
                   <div
                     className="bg-purple-600 h-full rounded-full transition-all"
                     style={{
-                      width: `${Math.min(100, (limiteUtilizado / selectedCard.limiteTotal) * 100)}%`,
+                      width: `${Math.min(100, (limiteUtilizado / selectedCard.limite) * 100)}%`,
                     }}
                   />
                 </div>
@@ -244,7 +293,7 @@ export const CartoesView: React.FC = () => {
                 <strong>Regra de Pagamento de Fatura:</strong>
                 <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[11px]">
                   <li>O valor será debitado da conta bancária escolhida.</li>
-                  <li>O limite de crédito de {formatCurrency(selectedCard.limiteTotal)} será restaurado.</li>
+                  <li>O limite de crédito de {formatCurrency(selectedCard.limite)} será restaurado.</li>
                   <li>Os lançamentos vinculados à fatura passarão para o status &ldquo;Pago&rdquo;.</li>
                 </ul>
               </div>
@@ -289,6 +338,145 @@ export const CartoesView: React.FC = () => {
                   className="px-4 py-2 font-bold bg-purple-700 hover:bg-purple-800 text-white rounded-lg"
                 >
                   Confirmar Pagamento de Fatura
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Card Modal */}
+      {showNewCardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden">
+            <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
+              <h2 className="font-extrabold text-sm tracking-tight">Novo Cartão</h2>
+              <button onClick={() => setShowNewCardModal(false)} className="text-stone-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleNovoCartao} className="p-5 space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">Apelido do cartão</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Cartão Empresarial Nubank"
+                  value={novoNome}
+                  onChange={(e) => setNovoNome(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-200 rounded-lg"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">Banco</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Nubank"
+                    value={novoBanco}
+                    onChange={(e) => setNovoBanco(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">Bandeira</label>
+                  <select
+                    value={novaBandeira}
+                    onChange={(e) => setNovaBandeira(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg bg-white"
+                  >
+                    <option value="Visa">Visa</option>
+                    <option value="Mastercard">Mastercard</option>
+                    <option value="Elo">Elo</option>
+                    <option value="American Express">American Express</option>
+                    <option value="Outra">Outra</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">Final do cartão</label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    placeholder="0000"
+                    value={novoFinal}
+                    onChange={(e) => setNovoFinal(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">Limite (R$)</label>
+                  <input
+                    type="text"
+                    placeholder="0,00"
+                    value={novoLimite}
+                    onChange={(e) => setNovoLimite(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg"
+                  />
+                </div>
+              </div>
+              {integrantes.length > 1 && (
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">Titular</label>
+                  <select
+                    value={novoIntegranteId}
+                    onChange={(e) => setNovoIntegranteId(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg bg-white"
+                  >
+                    {integrantes.map((ig) => (
+                      <option key={ig.id} value={ig.id}>{ig.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">Conta usada pra pagar a fatura</label>
+                <select
+                  value={novaContaPagamentoId}
+                  onChange={(e) => setNovaContaPagamentoId(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-200 rounded-lg bg-white"
+                >
+                  {contas.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nomePersonalizado} ({c.banco})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">Dia de fechamento</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={novoFechamento}
+                    onChange={(e) => setNovoFechamento(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-stone-700 mb-1">Dia de vencimento</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={novoVencimento}
+                    onChange={(e) => setNovoVencimento(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setShowNewCardModal(false)}
+                  className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg font-medium"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="px-5 py-2 font-bold bg-stone-900 text-white hover:bg-stone-800 rounded-xl">
+                  Adicionar Cartão
                 </button>
               </div>
             </form>

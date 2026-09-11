@@ -24,6 +24,25 @@ async function criarCookieSessao(uid: string, familiaId: string): Promise<string
   return `session=${token}; HttpOnly; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=Lax; Secure`;
 }
 
+const categoriasIniciais = (): any[] => {
+  const hoje = new Date().toISOString().split('T')[0];
+  const despesas = [
+    'Produção Rural',
+    'Combustível & Lubrificantes',
+    'Manutenção de Máquinas',
+    'Moradia & Manutenção',
+    'Veículos Pessoais',
+    'Saúde & Seguros',
+    'Educação',
+    'Outros',
+  ];
+  const receitas = ['Safra de Soja', 'Safra de Milho', 'Arrendamento de Terras', 'Rendimentos & Dividendos', 'Outras Receitas'];
+  return [
+    ...despesas.map((nome, i) => ({ id: `cat-desp-${i}`, nome, tipo: 'DESPESA', ativa: true, criadoEm: hoje })),
+    ...receitas.map((nome, i) => ({ id: `cat-rec-${i}`, nome, tipo: 'RECEITA', ativa: true, criadoEm: hoje })),
+  ];
+};
+
 const dadosIniciais = (nomeUsuario: string, email: string) => ({
   usuarios: [
     {
@@ -62,6 +81,7 @@ const dadosIniciais = (nomeUsuario: string, email: string) => ({
   operacoes: [],
   auditorias: [],
   encerramentos: [],
+  categoriasPlanoContas: categoriasIniciais(),
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

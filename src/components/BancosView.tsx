@@ -24,6 +24,7 @@ export const BancosView: React.FC = () => {
     addConta,
     addTransferencia,
     currentUser,
+    integrantes,
   } = useFinance();
 
   // Modals state
@@ -49,6 +50,7 @@ export const BancosView: React.FC = () => {
   const [novaConta, setNovaConta] = useState('');
   const [novoTipo, setNovoTipo] = useState<TipoContaBancaria>('Conta Corrente');
   const [novoTitular, setNovoTitular] = useState('');
+  const [novoIntegranteId, setNovoIntegranteId] = useState('');
   const [novoSaldoInicial, setNovoSaldoInicial] = useState('');
   const [novoLimite, setNovoLimite] = useState('');
 
@@ -105,6 +107,7 @@ export const BancosView: React.FC = () => {
       conta: novaConta,
       tipo: novoTipo,
       titular: novoTitular || 'Grupo Familiar',
+      integranteId: novoIntegranteId || undefined,
       saldoInicial: parseFloat(novoSaldoInicial.replace(',', '.')) || 0,
       limite: parseFloat(novoLimite.replace(',', '.')) || 0,
       cor: '#0f2942',
@@ -116,6 +119,7 @@ export const BancosView: React.FC = () => {
     setNovaAgencia('');
     setNovaConta('');
     setNovoTitular('');
+    setNovoIntegranteId('');
     setNovoSaldoInicial('');
     setNovoLimite('');
   };
@@ -516,13 +520,20 @@ export const BancosView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">Titular</label>
-                  <input
-                    type="text"
-                    placeholder="Nome do Titular"
-                    value={novoTitular}
-                    onChange={(e) => setNovoTitular(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-200 rounded-lg"
-                  />
+                  <select
+                    value={novoIntegranteId}
+                    onChange={(e) => {
+                      setNovoIntegranteId(e.target.value);
+                      const ig = integrantes.find((i) => i.id === e.target.value);
+                      setNovoTitular(ig ? ig.nome : '');
+                    }}
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg bg-white"
+                  >
+                    <option value="">Grupo Familiar (sem titular específico)</option>
+                    {integrantes.map((ig) => (
+                      <option key={ig.id} value={ig.id}>{ig.nome}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

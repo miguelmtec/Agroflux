@@ -17,7 +17,7 @@ interface NovoLancamentoModalProps {
 }
 
 export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen, onClose }) => {
-  const { integrantes, fazendas, contas, cartoes, addDespesa, addReceita, addTransferencia } = useFinance();
+  const { integrantes, fazendas, contas, cartoes, categoriasPlanoContas, addDespesa, addReceita, addTransferencia } = useFinance();
 
   const [tipo, setTipo] = useState<'DESPESA' | 'RECEITA' | 'TRANSFERENCIA'>('DESPESA');
   const [meioPagamento, setMeioPagamento] = useState<'A_DEFINIR' | 'CONTA' | 'CARTAO'>('A_DEFINIR');
@@ -25,7 +25,7 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
 
   // Common fields
   const [descricao, setDescricao] = useState('');
-  const [categoria, setCategoria] = useState('Produção Rural');
+  const [categoria, setCategoria] = useState('');
   const [valor, setValor] = useState('');
   const [dataVencimento, setDataVencimento] = useState(() => new Date().toISOString().split('T')[0]);
   const [dataCompetencia, setDataCompetencia] = useState(dataVencimento);
@@ -52,6 +52,31 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
   useEffect(() => {
     if (!competenciaEditada) setDataCompetencia(dataVencimento);
   }, [dataVencimento, competenciaEditada]);
+
+  // Seleciona a primeira categoria disponível assim que o modal abre
+  useEffect(() => {
+    if (isOpen && !categoria) {
+      const primeira = categoriasPlanoContas.find((c) => c.tipo === tipo && c.ativa);
+      if (primeira) setCategoria(primeira.nome);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, categoriasPlanoContas]);
+
+  // Se a conta ou cartão escolhido tiver um titular vinculado, o lançamento
+  // já "casa" automaticamente com esse integrante, sem precisar escolher de novo.
+  useEffect(() => {
+    if (tipo === 'TRANSFERENCIA') return;
+    let vinculoId: string | undefined;
+    if (meioPagamento === 'CONTA' && contaId) {
+      vinculoId = contas.find((c) => c.id === contaId)?.integranteId;
+    } else if (meioPagamento === 'CARTAO' && cartaoId) {
+      vinculoId = cartoes.find((c) => c.id === cartaoId)?.integranteId;
+    } else if (tipo === 'RECEITA' && contaId) {
+      vinculoId = contas.find((c) => c.id === contaId)?.integranteId;
+    }
+    if (vinculoId) setIntegranteId(vinculoId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contaId, cartaoId, meioPagamento, tipo]);
 
   const mostrarIntegrante = integrantes.length > 1;
   const mostrarFazenda = fazendas.length > 1;
@@ -171,7 +196,11 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
-              onClick={() => { setTipo('DESPESA'); setCategoria('Produção Rural'); }}
+              onClick={() => {
+                setTipo('DESPESA');
+                const primeira = categoriasPlanoContas.find((c) => c.tipo === 'DESPESA' && c.ativa);
+                if (primeira) setCategoria(primeira.nome);
+              }}
               className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
                 tipo === 'DESPESA' ? 'bg-rose-600 text-white shadow-xs' : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
               }`}
@@ -180,7 +209,11 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
             </button>
             <button
               type="button"
-              onClick={() => { setTipo('RECEITA'); setCategoria('Safra de Soja'); }}
+              onClick={() => {
+                setTipo('RECEITA');
+                const primeira = categoriasPlanoContas.find((c) => c.tipo === 'RECEITA' && c.ativa);
+                if (primeira) setCategoria(primeira.nome);
+              }}
               className={`py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all ${
                 tipo === 'RECEITA' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
               }`}
@@ -230,26 +263,11 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
               <div>
                 <label className={labelClass}>Categoria</label>
                 <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={`${inputClass} bg-white`}>
-                  {tipo === 'DESPESA' ? (
-                    <>
-                      <option value="Produção Rural">Produção Rural</option>
-                      <option value="Combustível & Lubrificantes">Combustível & Lubrificantes</option>
-                      <option value="Manutenção de Máquinas">Manutenção de Máquinas</option>
-                      <option value="Moradia & Manutenção">Moradia & Manutenção</option>
-                      <option value="Veículos Pessoais">Veículos Pessoais</option>
-                      <option value="Saúde & Seguros">Saúde & Seguros</option>
-                      <option value="Educação">Educação</option>
-                      <option value="Outros">Outros</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="Safra de Soja">Safra de Soja</option>
-                      <option value="Safra de Milho">Safra de Milho</option>
-                      <option value="Arrendamento de Terras">Arrendamento de Terras</option>
-                      <option value="Rendimentos & Dividendos">Rendimentos & Dividendos</option>
-                      <option value="Outras Receitas">Outras Receitas</option>
-                    </>
-                  )}
+                  {categoriasPlanoContas
+                    .filter((c) => c.tipo === tipo && (c.ativa || c.nome === categoria))
+                    .map((c) => (
+                      <option key={c.id} value={c.nome}>{c.nome}</option>
+                    ))}
                 </select>
               </div>
 

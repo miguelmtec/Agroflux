@@ -16,6 +16,7 @@ import { BancosView } from './components/BancosView';
 import { CartoesView } from './components/CartoesView';
 import { EmprestimosView } from './components/EmprestimosView';
 import { OperacoesView } from './components/OperacoesView';
+import { EmprestimosOperacoesView } from './components/EmprestimosOperacoesView';
 import { RecorrenciasView } from './components/RecorrenciasView';
 import { GrupoFamiliarView } from './components/GrupoFamiliarView';
 import { FluxoCaixaView } from './components/FluxoCaixaView';
@@ -27,6 +28,7 @@ import { NovoLancamentoModal } from './components/NovoLancamentoModal';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { AuthModal } from './components/AuthModal';
 import { PainelMasterView } from './components/PainelMasterView';
+import { PlanoContasView } from './components/PlanoContasView';
 
 const MainAppContent: React.FC = () => {
   const { currentUser, authLoading, isMaster, acessoLiberado, statusAcesso, acessoAte, logout } = useFinance();
@@ -110,9 +112,9 @@ const MainAppContent: React.FC = () => {
       case 'cartoes':
         return <CartoesView />;
       case 'emprestimos':
-        return <EmprestimosView />;
+        return <EmprestimosOperacoesView />;
       case 'operacoes':
-        return <OperacoesView />;
+        return <EmprestimosOperacoesView />;
       case 'fazendas':
         return <FazendasUsuariosView initialTab="FAZENDAS" />;
       case 'recorrencias':
@@ -121,6 +123,8 @@ const MainAppContent: React.FC = () => {
         return <GrupoFamiliarView />;
       case 'fluxo-caixa':
         return <FluxoCaixaView />;
+      case 'plano-contas':
+        return <PlanoContasView />;
       case 'relatorios':
         return <RelatoriosView />;
       case 'documentos':

@@ -15,6 +15,7 @@ import {
   LineChart,
   FileSpreadsheet,
   FileText,
+  Layers,
   ShieldCheck,
   Settings,
   X,
@@ -82,15 +83,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             },
             { id: 'bancos', label: 'Bancos & Contas', icon: Landmark, badge: null },
             { id: 'cartoes', label: 'Cartões & Faturas', icon: CreditCard, badge: null },
-            { id: 'emprestimos', label: 'Empréstimos', icon: Building2, badge: null },
+            { id: 'emprestimos', label: 'Empréstimos & Operações', icon: Building2, badge: null },
             { id: 'recorrencias', label: 'Recorrências', icon: Repeat, badge: null },
             { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: LineChart, badge: null },
+            { id: 'plano-contas', label: 'Plano de Contas', icon: Layers, badge: null },
           ],
         },
         {
           label: 'Fazenda',
           items: [
-            { id: 'operacoes', label: 'Operações Agrícolas', icon: Tractor, badge: null },
             {
               id: 'fazendas',
               label: 'Fazendas & Usuários',

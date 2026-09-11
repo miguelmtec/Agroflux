@@ -73,6 +73,7 @@ export interface ContaBancaria {
   conta: string;
   tipo: TipoContaBancaria;
   titular: string;
+  integranteId?: string;
   saldoInicial: number;
   limite: number;
   cor: string;
@@ -209,6 +210,7 @@ export interface CartaoCredito {
   bandeira: string;
   finalCartao: string;
   titular: string;
+  integranteId?: string;
   limite: number;
   melhorDiaCompra: number;
   diaFechamento: number;
@@ -320,4 +322,13 @@ export interface EncerramentoMes {
 
 export type PerfilAcesso = UserProfile;
 export type TipoEmprestimo = 'Crédito Rural' | 'Financiamento Maquinário' | 'Custeio Agrícola' | 'Capital de Giro' | 'Outros';
+
+export interface CategoriaPlanoContas {
+  id: string;
+  nome: string;
+  tipo: 'DESPESA' | 'RECEITA';
+  grupo?: string; // agrupamento maior, ex: "Custos Operacionais", "Administrativo" — útil pro contador
+  ativa: boolean;
+  criadoEm: string;
+}
 
