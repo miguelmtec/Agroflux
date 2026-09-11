@@ -161,6 +161,7 @@ export interface Despesa {
   totalParcelas?: number;
   classificacao?: ClassificacaoDespesa;
   fornecedor?: string;
+  pedidoCompraId?: string; // referência ao pedido de compra que originou essa parcela (Fase 3)
   numeroDocumento?: string;
   observacao?: string;
   anexos?: AnexoDocumento[];
@@ -337,22 +338,24 @@ export interface CategoriaPlanoContas {
 export interface Fornecedor {
   id: string;
   nome: string;
+  tipo?: string; // ex: Revenda, Cooperativa, Indústria, Distribuidor, Transportadora — texto livre
   cnpjCpf?: string;
+  inscricaoEstadual?: string;
   telefone?: string;
   email?: string;
+  contatoResponsavel?: string;
+  cidade?: string;
+  uf?: string;
   observacao?: string;
   ativo: boolean;
   criadoEm: string;
 }
 
-export type CategoriaProduto = 'Defensivo Agrícola' | 'Semente' | 'Fertilizante' | 'Outro Insumo';
-export type UnidadeMedida = 'kg' | 'L' | 'saca' | 'ton' | 'unidade';
-
 export interface Produto {
   id: string;
   nome: string;
-  categoria: CategoriaProduto;
-  unidadeMedida: UnidadeMedida;
+  categoria: string; // texto livre com sugestões (Defensivo Agrícola, Semente, Fertilizante, etc.)
+  unidadeMedida: string; // texto livre com sugestões (kg, L, Saca 60kg, Big Bag 1000kg, etc.)
   estoqueAtual: number; // controlado pelas entregas (Fase 2) e consumo (Fase 4)
   estoqueMinimo?: number;
   ativo: boolean;
@@ -377,6 +380,38 @@ export interface PedidoCompra {
   itens: ItemPedidoCompra[];
   valorTotal: number;
   status: StatusPedidoCompra;
+  observacao?: string;
+  pagamentoGerado?: boolean;
+  criadoEm: string;
+}
+
+export interface Talhao {
+  id: string;
+  fazendaId: string;
+  nome: string;
+  areaHectares?: number;
+  culturaAtual?: string;
+  ativo: boolean;
+  criadoEm: string;
+}
+
+export interface Safra {
+  id: string;
+  nome: string; // ex: "Verão 2025/26", "Inverno 2026"
+  dataInicio?: string;
+  dataFim?: string;
+  ativa: boolean;
+  criadoEm: string;
+}
+
+export interface ConsumoInsumo {
+  id: string;
+  produtoId: string;
+  fazendaId?: string;
+  talhaoId?: string;
+  safraId?: string;
+  quantidade: number;
+  data: string;
   observacao?: string;
   criadoEm: string;
 }

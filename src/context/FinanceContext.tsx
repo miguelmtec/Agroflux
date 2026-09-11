@@ -21,6 +21,9 @@ import {
   Fornecedor,
   Produto,
   PedidoCompra,
+  Talhao,
+  Safra,
+  ConsumoInsumo,
 } from '../types';
 
 interface FinanceContextType {
@@ -62,6 +65,16 @@ interface FinanceContextType {
   pedidosCompra: PedidoCompra[];
   addPedidoCompra: (p: Omit<PedidoCompra, 'id' | 'criadoEm' | 'valorTotal' | 'status'>) => void;
   cancelarPedidoCompra: (id: string) => void;
+  registrarEntregaPedido: (pedidoId: string, entregas: { produtoId: string; quantidade: number }[]) => void;
+  gerarPagamentoPedido: (pedidoId: string, parcelas: { valor: number; vencimento: string }[]) => void;
+  talhoes: Talhao[];
+  addTalhao: (t: Omit<Talhao, 'id' | 'criadoEm'>) => void;
+  toggleTalhaoAtivo: (id: string) => void;
+  safras: Safra[];
+  addSafra: (s: Omit<Safra, 'id' | 'criadoEm'>) => void;
+  toggleSafraAtiva: (id: string) => void;
+  consumos: ConsumoInsumo[];
+  registrarConsumoInsumo: (c: Omit<ConsumoInsumo, 'id' | 'criadoEm'>) => { success: boolean; message?: string };
 
   // User Management
   updateUsuarioNome: (id: string, novoNome: string) => void;
@@ -186,6 +199,9 @@ interface FamiliaDados {
   fornecedores: Fornecedor[];
   produtos: Produto[];
   pedidosCompra: PedidoCompra[];
+  talhoes: Talhao[];
+  safras: Safra[];
+  consumos: ConsumoInsumo[];
 }
 
 const DESPESA_CATEGORIAS_PADRAO = [
@@ -257,6 +273,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [pedidosCompra, setPedidosCompra] = useState<PedidoCompra[]>([]);
+  const [talhoes, setTalhoes] = useState<Talhao[]>([]);
+  const [safras, setSafras] = useState<Safra[]>([]);
+  const [consumos, setConsumos] = useState<ConsumoInsumo[]>([]);
 
   const [selectedMemberId, setSelectedMemberId] = useState<string>('TODOS');
 
@@ -287,6 +306,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setFornecedores(dados.fornecedores || []);
     setProdutos(dados.produtos || []);
     setPedidosCompra(dados.pedidosCompra || []);
+    setTalhoes(dados.talhoes || []);
+    setSafras(dados.safras || []);
+    setConsumos(dados.consumos || []);
     const meu = (dados.usuarios || []).find(
       (u) => u.emailGoogle.toLowerCase() === emailLogado.toLowerCase()
     );
@@ -335,6 +357,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       fornecedores,
       produtos,
       pedidosCompra,
+      talhoes,
+      safras,
+      consumos,
     };
     const t = setTimeout(() => {
       api.salvarFamilia(payload).then((resp) => {
@@ -362,6 +387,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     fornecedores,
     produtos,
     pedidosCompra,
+    talhoes,
+    safras,
+    consumos,
   ]);
 
   // Helper: Log audit action
@@ -1273,6 +1301,115 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('EDITAR', 'PedidoCompra', id, 'Pedido de compra cancelado.');
   };
 
+  // Fase 2: registrar entrega de um pedido (parcial ou total) e atualizar o estoque
+  const registrarEntregaPedido = (pedidoId: string, entregas: { produtoId: string; quantidade: number }[]) => {
+    const pedido = pedidosCompra.find((p) => p.id === pedidoId);
+    if (!pedido) return;
+
+    setProdutos((prev) =>
+      prev.map((prod) => {
+        const entrega = entregas.find((e) => e.produtoId === prod.id);
+        if (!entrega || entrega.quantidade <= 0) return prod;
+        return { ...prod, estoqueAtual: prod.estoqueAtual + entrega.quantidade };
+      })
+    );
+
+    setPedidosCompra((prev) =>
+      prev.map((p) => {
+        if (p.id !== pedidoId) return p;
+        const novosItens = p.itens.map((item) => {
+          const entrega = entregas.find((e) => e.produtoId === item.produtoId);
+          if (!entrega) return item;
+          return { ...item, quantidadeRecebida: Math.min(item.quantidade, item.quantidadeRecebida + entrega.quantidade) };
+        });
+        const totalPedido = novosItens.reduce((sum, i) => sum + i.quantidade, 0);
+        const totalRecebido = novosItens.reduce((sum, i) => sum + i.quantidadeRecebida, 0);
+        const novoStatus: PedidoCompra['status'] =
+          totalRecebido >= totalPedido ? 'Entregue' : totalRecebido > 0 ? 'Parcialmente entregue' : p.status;
+        return { ...p, itens: novosItens, status: novoStatus };
+      })
+    );
+
+    addAuditLog('RECEBIMENTO', 'PedidoCompra', pedidoId, 'Entrega registrada, estoque atualizado.');
+  };
+
+  // Fase 3: gerar as Contas a Pagar (parceladas ou não) referentes a um pedido
+  const gerarPagamentoPedido = (pedidoId: string, parcelas: { valor: number; vencimento: string }[]) => {
+    const pedido = pedidosCompra.find((p) => p.id === pedidoId);
+    if (!pedido) return;
+    const fornecedor = fornecedores.find((f) => f.id === pedido.fornecedorId);
+    const primeiroProduto = produtos.find((pr) => pr.id === pedido.itens[0]?.produtoId);
+
+    parcelas.forEach((parcela, idx) => {
+      addDespesa({
+        descricao: `Pedido de compra${fornecedor ? ' - ' + fornecedor.nome : ''}${parcelas.length > 1 ? ` (${idx + 1}/${parcelas.length})` : ''}`,
+        categoria: primeiroProduto?.categoria || 'Produção Rural',
+        integranteId: integrantes[0]?.id || '',
+        fazendaId: pedido.fazendaId,
+        valor: parcela.valor,
+        dataCompetencia: pedido.dataPedido,
+        dataVencimento: parcela.vencimento,
+        status: 'A pagar',
+        fornecedor: fornecedor?.nome,
+        pedidoCompraId: pedido.id,
+        parcelaAtual: parcelas.length > 1 ? idx + 1 : undefined,
+        totalParcelas: parcelas.length > 1 ? parcelas.length : undefined,
+      } as Omit<Despesa, 'id' | 'criadoEm' | 'criadoPor'>);
+    });
+
+    setPedidosCompra((prev) => prev.map((p) => (p.id === pedidoId ? { ...p, pagamentoGerado: true } : p)));
+    addAuditLog(
+      'CRIAR',
+      'PedidoCompra',
+      pedidoId,
+      `Gerada${parcelas.length > 1 ? 's' : ''} ${parcelas.length} conta(s) a pagar referente(s) ao pedido.`
+    );
+  };
+
+  // Fase 4: Talhões, Safras e Consumo
+  const addTalhao = (t: Omit<Talhao, 'id' | 'criadoEm'>) => {
+    const novo: Talhao = { ...t, id: `tal-${Date.now()}`, criadoEm: new Date().toISOString().split('T')[0] };
+    setTalhoes((prev) => [...prev, novo]);
+    addAuditLog('CRIAR', 'Talhao', novo.id, `Novo talhão cadastrado: ${novo.nome}`);
+  };
+
+  const toggleTalhaoAtivo = (id: string) => {
+    setTalhoes((prev) => prev.map((t) => (t.id === id ? { ...t, ativo: !t.ativo } : t)));
+  };
+
+  const addSafra = (s: Omit<Safra, 'id' | 'criadoEm'>) => {
+    const nova: Safra = { ...s, id: `saf-${Date.now()}`, criadoEm: new Date().toISOString().split('T')[0] };
+    setSafras((prev) => [...prev, nova]);
+    addAuditLog('CRIAR', 'Safra', nova.id, `Nova safra cadastrada: ${nova.nome}`);
+  };
+
+  const toggleSafraAtiva = (id: string) => {
+    setSafras((prev) => prev.map((s) => (s.id === id ? { ...s, ativa: !s.ativa } : s)));
+  };
+
+  const registrarConsumoInsumo = (c: Omit<ConsumoInsumo, 'id' | 'criadoEm'>): { success: boolean; message?: string } => {
+    const produto = produtos.find((p) => p.id === c.produtoId);
+    if (!produto) return { success: false, message: 'Produto não encontrado.' };
+    if (c.quantidade > produto.estoqueAtual) {
+      return {
+        success: false,
+        message: `Estoque insuficiente: tem ${produto.estoqueAtual} ${produto.unidadeMedida}, tentando usar ${c.quantidade}.`,
+      };
+    }
+    const novo: ConsumoInsumo = { ...c, id: `cons-${Date.now()}`, criadoEm: new Date().toISOString().split('T')[0] };
+    setConsumos((prev) => [novo, ...prev]);
+    setProdutos((prev) =>
+      prev.map((p) => (p.id === c.produtoId ? { ...p, estoqueAtual: p.estoqueAtual - c.quantidade } : p))
+    );
+    addAuditLog(
+      'EDITAR',
+      'Produto',
+      c.produtoId,
+      `Consumo de ${c.quantidade} ${produto.unidadeMedida} de ${produto.nome} registrado.`
+    );
+    return { success: true };
+  };
+
   // User Management
   const updateUsuarioNome = (id: string, novoNome: string) => {
     setUsuarios((prev) =>
@@ -1512,6 +1649,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         pedidosCompra,
         addPedidoCompra,
         cancelarPedidoCompra,
+        registrarEntregaPedido,
+        gerarPagamentoPedido,
+        talhoes,
+        addTalhao,
+        toggleTalhaoAtivo,
+        safras,
+        addSafra,
+        toggleSafraAtiva,
+        consumos,
+        registrarConsumoInsumo,
         updateUsuarioNome,
         updateUsuario,
         addUsuarioAutorizado,
