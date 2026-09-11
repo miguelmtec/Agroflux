@@ -332,3 +332,52 @@ export interface CategoriaPlanoContas {
   criadoEm: string;
 }
 
+// ---- Módulo de Compras & Estoque (Fase 1) ----
+
+export interface Fornecedor {
+  id: string;
+  nome: string;
+  cnpjCpf?: string;
+  telefone?: string;
+  email?: string;
+  observacao?: string;
+  ativo: boolean;
+  criadoEm: string;
+}
+
+export type CategoriaProduto = 'Defensivo Agrícola' | 'Semente' | 'Fertilizante' | 'Outro Insumo';
+export type UnidadeMedida = 'kg' | 'L' | 'saca' | 'ton' | 'unidade';
+
+export interface Produto {
+  id: string;
+  nome: string;
+  categoria: CategoriaProduto;
+  unidadeMedida: UnidadeMedida;
+  estoqueAtual: number; // controlado pelas entregas (Fase 2) e consumo (Fase 4)
+  estoqueMinimo?: number;
+  ativo: boolean;
+  criadoEm: string;
+}
+
+export interface ItemPedidoCompra {
+  produtoId: string;
+  quantidade: number;
+  valorUnitario: number;
+  quantidadeRecebida: number; // usado a partir da Fase 2 (entregas parciais)
+}
+
+export type StatusPedidoCompra = 'Pendente' | 'Parcialmente entregue' | 'Entregue' | 'Cancelado';
+
+export interface PedidoCompra {
+  id: string;
+  fornecedorId: string;
+  fazendaId?: string;
+  dataPedido: string;
+  previsaoEntrega?: string;
+  itens: ItemPedidoCompra[];
+  valorTotal: number;
+  status: StatusPedidoCompra;
+  observacao?: string;
+  criadoEm: string;
+}
+

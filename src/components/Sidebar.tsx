@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
   FileText,
   Layers,
+  Package,
   ShieldCheck,
   Settings,
   X,
@@ -99,6 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               badge: `${fazendas.length} faz.`,
               badgeColor: 'bg-emerald-100 text-emerald-800 font-bold',
             },
+            { id: 'compras-estoque', label: 'Compras & Estoque', icon: Package, badge: null },
           ],
         },
         {

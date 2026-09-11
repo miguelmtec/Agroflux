@@ -66,6 +66,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
     if (selectedMemberId && selectedMemberId !== 'TODOS') {
       setIntegranteId(selectedMemberId);
     }
+    if (!fazendaId && fazendas.length === 1) {
+      setFazendaId(fazendas[0].id);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, categoriasPlanoContas]);
 
@@ -86,7 +89,7 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
   }, [contaId, cartaoId, meioPagamento, tipo]);
 
   const mostrarIntegrante = integrantes.length > 1;
-  const mostrarFazenda = fazendas.length > 1;
+  const mostrarFazenda = fazendas.length >= 1;
 
   if (!isOpen) return null;
 

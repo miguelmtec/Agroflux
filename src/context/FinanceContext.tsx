@@ -18,6 +18,9 @@ import {
   UserProfile,
   UserPermissions,
   CategoriaPlanoContas,
+  Fornecedor,
+  Produto,
+  PedidoCompra,
 } from '../types';
 
 interface FinanceContextType {
@@ -50,6 +53,15 @@ interface FinanceContextType {
   addCategoriaPlanoContas: (categoria: Omit<CategoriaPlanoContas, 'id' | 'criadoEm'>) => void;
   toggleCategoriaAtiva: (id: string) => void;
   removerCategoriaPlanoContas: (id: string) => void;
+  fornecedores: Fornecedor[];
+  addFornecedor: (f: Omit<Fornecedor, 'id' | 'criadoEm'>) => void;
+  toggleFornecedorAtivo: (id: string) => void;
+  produtos: Produto[];
+  addProduto: (p: Omit<Produto, 'id' | 'criadoEm' | 'estoqueAtual'>) => void;
+  toggleProdutoAtivo: (id: string) => void;
+  pedidosCompra: PedidoCompra[];
+  addPedidoCompra: (p: Omit<PedidoCompra, 'id' | 'criadoEm' | 'valorTotal' | 'status'>) => void;
+  cancelarPedidoCompra: (id: string) => void;
 
   // User Management
   updateUsuarioNome: (id: string, novoNome: string) => void;
@@ -171,6 +183,9 @@ interface FamiliaDados {
   auditorias: LogAuditoria[];
   encerramentos: EncerramentoMes[];
   categoriasPlanoContas: CategoriaPlanoContas[];
+  fornecedores: Fornecedor[];
+  produtos: Produto[];
+  pedidosCompra: PedidoCompra[];
 }
 
 const DESPESA_CATEGORIAS_PADRAO = [
@@ -239,6 +254,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [auditorias, setAuditorias] = useState<LogAuditoria[]>([]);
   const [encerramentos, setEncerramentos] = useState<EncerramentoMes[]>([]);
   const [categoriasPlanoContas, setCategoriasPlanoContas] = useState<CategoriaPlanoContas[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [pedidosCompra, setPedidosCompra] = useState<PedidoCompra[]>([]);
 
   const [selectedMemberId, setSelectedMemberId] = useState<string>('TODOS');
 
@@ -266,6 +284,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         ? dados.categoriasPlanoContas
         : categoriasPadrao()
     );
+    setFornecedores(dados.fornecedores || []);
+    setProdutos(dados.produtos || []);
+    setPedidosCompra(dados.pedidosCompra || []);
     const meu = (dados.usuarios || []).find(
       (u) => u.emailGoogle.toLowerCase() === emailLogado.toLowerCase()
     );
@@ -311,6 +332,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       auditorias,
       encerramentos,
       categoriasPlanoContas,
+      fornecedores,
+      produtos,
+      pedidosCompra,
     };
     const t = setTimeout(() => {
       api.salvarFamilia(payload).then((resp) => {
@@ -335,6 +359,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     auditorias,
     encerramentos,
     categoriasPlanoContas,
+    fornecedores,
+    produtos,
+    pedidosCompra,
   ]);
 
   // Helper: Log audit action
@@ -1196,6 +1223,56 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('EXCLUIR', 'CategoriaPlanoContas', id, `Categoria excluída: ${found?.nome}`);
   };
 
+  // Compras & Estoque (Fase 1)
+  const addFornecedor = (f: Omit<Fornecedor, 'id' | 'criadoEm'>) => {
+    const novo: Fornecedor = { ...f, id: `forn-${Date.now()}`, criadoEm: new Date().toISOString().split('T')[0] };
+    setFornecedores((prev) => [...prev, novo]);
+    addAuditLog('CRIAR', 'Fornecedor', novo.id, `Novo fornecedor cadastrado: ${novo.nome}`);
+  };
+
+  const toggleFornecedorAtivo = (id: string) => {
+    setFornecedores((prev) => prev.map((f) => (f.id === id ? { ...f, ativo: !f.ativo } : f)));
+  };
+
+  const addProduto = (p: Omit<Produto, 'id' | 'criadoEm' | 'estoqueAtual'>) => {
+    const novo: Produto = {
+      ...p,
+      id: `prod-${Date.now()}`,
+      criadoEm: new Date().toISOString().split('T')[0],
+      estoqueAtual: 0,
+    };
+    setProdutos((prev) => [...prev, novo]);
+    addAuditLog('CRIAR', 'Produto', novo.id, `Novo produto no catálogo: ${novo.nome} (${novo.categoria})`);
+  };
+
+  const toggleProdutoAtivo = (id: string) => {
+    setProdutos((prev) => prev.map((p) => (p.id === id ? { ...p, ativo: !p.ativo } : p)));
+  };
+
+  const addPedidoCompra = (p: Omit<PedidoCompra, 'id' | 'criadoEm' | 'valorTotal' | 'status'>) => {
+    const valorTotal = p.itens.reduce((sum, item) => sum + item.quantidade * item.valorUnitario, 0);
+    const novo: PedidoCompra = {
+      ...p,
+      id: `ped-${Date.now()}`,
+      criadoEm: new Date().toISOString().split('T')[0],
+      valorTotal,
+      status: 'Pendente',
+    };
+    setPedidosCompra((prev) => [novo, ...prev]);
+    const fornecedorNome = fornecedores.find((f) => f.id === p.fornecedorId)?.nome || '';
+    addAuditLog(
+      'CRIAR',
+      'PedidoCompra',
+      novo.id,
+      `Novo pedido de compra para ${fornecedorNome}, valor total R$ ${valorTotal.toLocaleString('pt-BR')}`
+    );
+  };
+
+  const cancelarPedidoCompra = (id: string) => {
+    setPedidosCompra((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'Cancelado' as const } : p)));
+    addAuditLog('EDITAR', 'PedidoCompra', id, 'Pedido de compra cancelado.');
+  };
+
   // User Management
   const updateUsuarioNome = (id: string, novoNome: string) => {
     setUsuarios((prev) =>
@@ -1426,6 +1503,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addCategoriaPlanoContas,
         toggleCategoriaAtiva,
         removerCategoriaPlanoContas,
+        fornecedores,
+        addFornecedor,
+        toggleFornecedorAtivo,
+        produtos,
+        addProduto,
+        toggleProdutoAtivo,
+        pedidosCompra,
+        addPedidoCompra,
+        cancelarPedidoCompra,
         updateUsuarioNome,
         updateUsuario,
         addUsuarioAutorizado,

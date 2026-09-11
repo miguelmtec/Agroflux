@@ -82,6 +82,9 @@ const dadosIniciais = (nomeUsuario: string, email: string) => ({
   auditorias: [],
   encerramentos: [],
   categoriasPlanoContas: categoriasIniciais(),
+  fornecedores: [],
+  produtos: [],
+  pedidosCompra: [],
 });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
