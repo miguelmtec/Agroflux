@@ -3,9 +3,12 @@ import { sql } from '@vercel/postgres';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'troque-esta-chave-antes-de-ir-para-producao'
-);
+// Sem valor padrão: se JWT_SECRET não estiver configurado, a função falha ao
+// iniciar em vez de assinar tokens com um segredo público e previsível.
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET não configurado nas Environment Variables.');
+}
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 const MASTER_EMAILS = (process.env.MASTER_EMAILS || 'miguel@mtec.tec.br')
   .split(',')
   .map((e) => e.trim().toLowerCase())
@@ -15,8 +18,8 @@ function isMasterEmail(email: string): boolean {
   return MASTER_EMAILS.includes(String(email || '').trim().toLowerCase());
 }
 
-async function criarCookieSessao(uid: string, familiaId: string): Promise<string> {
-  const token = await new SignJWT({ uid, familiaId })
+async function criarCookieSessao(uid: string, familiaId: string, sessaoVersao: number): Promise<string> {
+  const token = await new SignJWT({ uid, familiaId, sv: sessaoVersao })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('30d')
@@ -137,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       RETURNING id
     `;
 
-    const cookie = await criarCookieSessao(usuario.rows[0].id as string, familiaId);
+    const cookie = await criarCookieSessao(usuario.rows[0].id as string, familiaId, 1);
     res.setHeader('Set-Cookie', cookie);
     res.status(200).json({
       success: true,

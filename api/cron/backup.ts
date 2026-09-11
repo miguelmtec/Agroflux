@@ -6,8 +6,16 @@ import { sql } from '@vercel/postgres';
 // automáticos com mais de 30 dias, pra não crescer pra sempre.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Proteção: só a própria Vercel (com o CRON_SECRET) pode chamar essa rota.
+  // Antes: se CRON_SECRET não estivesse definido, a checagem era pulada e a
+  // rota ficava aberta. Agora: sem CRON_SECRET configurado, a rota recusa
+  // sempre (fail-closed).
+  if (!process.env.CRON_SECRET) {
+    console.error('CRON_SECRET não configurado — recusando chamada por segurança.');
+    res.status(500).json({ error: 'Rota não configurada corretamente.' });
+    return;
+  }
   const auth = req.headers.authorization;
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     res.status(401).json({ error: 'Não autorizado.' });
     return;
   }

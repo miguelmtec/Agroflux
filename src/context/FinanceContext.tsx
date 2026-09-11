@@ -54,14 +54,19 @@ interface FinanceContextType {
   toggleFazendaAtiva: (id: string) => void;
   categoriasPlanoContas: CategoriaPlanoContas[];
   addCategoriaPlanoContas: (categoria: Omit<CategoriaPlanoContas, 'id' | 'criadoEm'>) => void;
+  updateCategoriaPlanoContas: (id: string, data: Partial<CategoriaPlanoContas>) => void;
   toggleCategoriaAtiva: (id: string) => void;
   removerCategoriaPlanoContas: (id: string) => void;
   fornecedores: Fornecedor[];
   addFornecedor: (f: Omit<Fornecedor, 'id' | 'criadoEm'>) => void;
+  updateFornecedor: (id: string, data: Partial<Fornecedor>) => void;
   toggleFornecedorAtivo: (id: string) => void;
+  removerFornecedor: (id: string) => { success: boolean; message?: string };
   produtos: Produto[];
   addProduto: (p: Omit<Produto, 'id' | 'criadoEm' | 'estoqueAtual'>) => void;
+  updateProduto: (id: string, data: Partial<Produto>) => void;
   toggleProdutoAtivo: (id: string) => void;
+  removerProduto: (id: string) => { success: boolean; message?: string };
   pedidosCompra: PedidoCompra[];
   addPedidoCompra: (p: Omit<PedidoCompra, 'id' | 'criadoEm' | 'valorTotal' | 'status'>) => void;
   cancelarPedidoCompra: (id: string) => void;
@@ -69,10 +74,14 @@ interface FinanceContextType {
   gerarPagamentoPedido: (pedidoId: string, parcelas: { valor: number; vencimento: string }[]) => void;
   talhoes: Talhao[];
   addTalhao: (t: Omit<Talhao, 'id' | 'criadoEm'>) => void;
+  updateTalhao: (id: string, data: Partial<Talhao>) => void;
   toggleTalhaoAtivo: (id: string) => void;
+  removerTalhao: (id: string) => { success: boolean; message?: string };
   safras: Safra[];
   addSafra: (s: Omit<Safra, 'id' | 'criadoEm'>) => void;
+  updateSafra: (id: string, data: Partial<Safra>) => void;
   toggleSafraAtiva: (id: string) => void;
+  removerSafra: (id: string) => { success: boolean; message?: string };
   consumos: ConsumoInsumo[];
   registrarConsumoInsumo: (c: Omit<ConsumoInsumo, 'id' | 'criadoEm'>) => { success: boolean; message?: string };
 
@@ -1245,6 +1254,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   };
 
+  const updateCategoriaPlanoContas = (id: string, data: Partial<CategoriaPlanoContas>) => {
+    setCategoriasPlanoContas((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+    addAuditLog('EDITAR', 'CategoriaPlanoContas', id, 'Categoria atualizada.');
+  };
+
   const removerCategoriaPlanoContas = (id: string) => {
     const found = categoriasPlanoContas.find((c) => c.id === id);
     setCategoriasPlanoContas((prev) => prev.filter((c) => c.id !== id));
@@ -1258,8 +1272,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('CRIAR', 'Fornecedor', novo.id, `Novo fornecedor cadastrado: ${novo.nome}`);
   };
 
+  const updateFornecedor = (id: string, data: Partial<Fornecedor>) => {
+    setFornecedores((prev) => prev.map((f) => (f.id === id ? { ...f, ...data } : f)));
+    addAuditLog('EDITAR', 'Fornecedor', id, 'Dados do fornecedor atualizados.');
+  };
+
   const toggleFornecedorAtivo = (id: string) => {
     setFornecedores((prev) => prev.map((f) => (f.id === id ? { ...f, ativo: !f.ativo } : f)));
+  };
+
+  const removerFornecedor = (id: string): { success: boolean; message?: string } => {
+    if (pedidosCompra.some((p) => p.fornecedorId === id)) {
+      return { success: false, message: 'Esse fornecedor já tem pedidos de compra vinculados. Desative em vez de excluir.' };
+    }
+    const found = fornecedores.find((f) => f.id === id);
+    setFornecedores((prev) => prev.filter((f) => f.id !== id));
+    addAuditLog('EXCLUIR', 'Fornecedor', id, `Fornecedor excluído: ${found?.nome}`);
+    return { success: true };
   };
 
   const addProduto = (p: Omit<Produto, 'id' | 'criadoEm' | 'estoqueAtual'>) => {
@@ -1273,8 +1302,29 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('CRIAR', 'Produto', novo.id, `Novo produto no catálogo: ${novo.nome} (${novo.categoria})`);
   };
 
+  const updateProduto = (id: string, data: Partial<Produto>) => {
+    setProdutos((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
+    addAuditLog('EDITAR', 'Produto', id, 'Dados do produto atualizados.');
+  };
+
   const toggleProdutoAtivo = (id: string) => {
     setProdutos((prev) => prev.map((p) => (p.id === id ? { ...p, ativo: !p.ativo } : p)));
+  };
+
+  const removerProduto = (id: string): { success: boolean; message?: string } => {
+    const produto = produtos.find((p) => p.id === id);
+    if (produto && produto.estoqueAtual > 0) {
+      return { success: false, message: 'Esse produto ainda tem estoque. Zere o estoque ou desative em vez de excluir.' };
+    }
+    if (pedidosCompra.some((p) => p.itens.some((it) => it.produtoId === id))) {
+      return { success: false, message: 'Esse produto já foi usado em algum pedido de compra. Desative em vez de excluir.' };
+    }
+    if (consumos.some((c) => c.produtoId === id)) {
+      return { success: false, message: 'Esse produto já tem consumo registrado. Desative em vez de excluir.' };
+    }
+    setProdutos((prev) => prev.filter((p) => p.id !== id));
+    addAuditLog('EXCLUIR', 'Produto', id, `Produto excluído: ${produto?.nome}`);
+    return { success: true };
   };
 
   const addPedidoCompra = (p: Omit<PedidoCompra, 'id' | 'criadoEm' | 'valorTotal' | 'status'>) => {
@@ -1373,8 +1423,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('CRIAR', 'Talhao', novo.id, `Novo talhão cadastrado: ${novo.nome}`);
   };
 
+  const updateTalhao = (id: string, data: Partial<Talhao>) => {
+    setTalhoes((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
+    addAuditLog('EDITAR', 'Talhao', id, 'Dados do talhão atualizados.');
+  };
+
   const toggleTalhaoAtivo = (id: string) => {
     setTalhoes((prev) => prev.map((t) => (t.id === id ? { ...t, ativo: !t.ativo } : t)));
+  };
+
+  const removerTalhao = (id: string): { success: boolean; message?: string } => {
+    if (consumos.some((c) => c.talhaoId === id)) {
+      return { success: false, message: 'Esse talhão já tem consumo de insumo registrado. Desative em vez de excluir.' };
+    }
+    const found = talhoes.find((t) => t.id === id);
+    setTalhoes((prev) => prev.filter((t) => t.id !== id));
+    addAuditLog('EXCLUIR', 'Talhao', id, `Talhão excluído: ${found?.nome}`);
+    return { success: true };
   };
 
   const addSafra = (s: Omit<Safra, 'id' | 'criadoEm'>) => {
@@ -1383,8 +1448,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('CRIAR', 'Safra', nova.id, `Nova safra cadastrada: ${nova.nome}`);
   };
 
+  const updateSafra = (id: string, data: Partial<Safra>) => {
+    setSafras((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)));
+    addAuditLog('EDITAR', 'Safra', id, 'Dados da safra atualizados.');
+  };
+
   const toggleSafraAtiva = (id: string) => {
     setSafras((prev) => prev.map((s) => (s.id === id ? { ...s, ativa: !s.ativa } : s)));
+  };
+
+  const removerSafra = (id: string): { success: boolean; message?: string } => {
+    if (consumos.some((c) => c.safraId === id)) {
+      return { success: false, message: 'Essa safra já tem consumo de insumo registrado. Desative em vez de excluir.' };
+    }
+    const found = safras.find((s) => s.id === id);
+    setSafras((prev) => prev.filter((s) => s.id !== id));
+    addAuditLog('EXCLUIR', 'Safra', id, `Safra excluída: ${found?.nome}`);
+    return { success: true };
   };
 
   const registrarConsumoInsumo = (c: Omit<ConsumoInsumo, 'id' | 'criadoEm'>): { success: boolean; message?: string } => {
@@ -1638,14 +1718,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         toggleFazendaAtiva,
         categoriasPlanoContas,
         addCategoriaPlanoContas,
+        updateCategoriaPlanoContas,
         toggleCategoriaAtiva,
         removerCategoriaPlanoContas,
         fornecedores,
         addFornecedor,
+        updateFornecedor,
         toggleFornecedorAtivo,
+        removerFornecedor,
         produtos,
         addProduto,
+        updateProduto,
         toggleProdutoAtivo,
+        removerProduto,
         pedidosCompra,
         addPedidoCompra,
         cancelarPedidoCompra,
@@ -1653,10 +1738,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         gerarPagamentoPedido,
         talhoes,
         addTalhao,
+        updateTalhao,
         toggleTalhaoAtivo,
+        removerTalhao,
         safras,
         addSafra,
+        updateSafra,
         toggleSafraAtiva,
+        removerSafra,
         consumos,
         registrarConsumoInsumo,
         updateUsuarioNome,

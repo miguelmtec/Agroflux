@@ -2,13 +2,17 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
 import { jwtVerify } from 'jose';
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'troque-esta-chave-antes-de-ir-para-producao'
-);
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET não configurado nas Environment Variables.');
+}
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 const MASTER_EMAILS = (process.env.MASTER_EMAILS || 'miguel@mtec.tec.br')
   .split(',')
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
+
+const STATUS_VALIDOS = ['pendente', 'ativo', 'bloqueado'];
+const PLANOS_VALIDOS = ['mensal', 'anual'];
 
 function isMasterEmail(email: string): boolean {
   return MASTER_EMAILS.includes(String(email || '').trim().toLowerCase());
@@ -17,15 +21,16 @@ function isMasterEmail(email: string): boolean {
 async function exigirMaster(req: VercelRequest): Promise<{ uid: string; email: string } | null> {
   const token = (req as any).cookies?.session;
   if (!token) return null;
-  let sessao: { uid: string; familiaId: string };
+  let sessao: { uid: string; sv: number };
   try {
     const { payload } = await jwtVerify(token, secret);
-    sessao = { uid: payload.uid as string, familiaId: payload.familiaId as string };
+    sessao = { uid: payload.uid as string, sv: (payload.sv as number) || 1 };
   } catch {
     return null;
   }
-  const r = await sql`SELECT email FROM usuarios_auth WHERE id = ${sessao.uid}`;
+  const r = await sql`SELECT email, sessao_versao FROM usuarios_auth WHERE id = ${sessao.uid}`;
   if (r.rows.length === 0) return null;
+  if ((r.rows[0].sessao_versao || 1) !== sessao.sv) return null;
   const email = r.rows[0].email as string;
   if (!isMasterEmail(email)) return null;
   return { uid: sessao.uid, email };
@@ -75,12 +80,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(400).json({ error: 'familiaId é obrigatório.' });
         return;
       }
+      if (status !== undefined && status !== null && !STATUS_VALIDOS.includes(status)) {
+        res.status(400).json({ error: `status deve ser um de: ${STATUS_VALIDOS.join(', ')}.` });
+        return;
+      }
+      if (plano !== undefined && plano !== null && !PLANOS_VALIDOS.includes(plano)) {
+        res.status(400).json({ error: `plano deve ser um de: ${PLANOS_VALIDOS.join(', ')}.` });
+        return;
+      }
+      let limiteUsuariosValidado: number | undefined;
+      if (limiteUsuarios !== undefined && limiteUsuarios !== null) {
+        const n = Number(limiteUsuarios);
+        if (!Number.isInteger(n) || n < 1) {
+          res.status(400).json({ error: 'limiteUsuarios deve ser um número inteiro maior que zero.' });
+          return;
+        }
+        limiteUsuariosValidado = n;
+      }
+
       await sql`
         UPDATE familias
         SET
           status = COALESCE(${status}, status),
           acesso_ate = ${acessoAte || null},
-          limite_usuarios = COALESCE(${limiteUsuarios}, limite_usuarios),
+          limite_usuarios = COALESCE(${limiteUsuariosValidado}, limite_usuarios),
           plano = COALESCE(${plano}, plano),
           observacoes = ${observacoes ?? null}
         WHERE id = ${familiaId}

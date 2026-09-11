@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
-import { Plus, Trash2, Layers, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Plus, Trash2, Pencil, Layers, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react';
 
 export const PlanoContasView: React.FC = () => {
-  const { categoriasPlanoContas, addCategoriaPlanoContas, toggleCategoriaAtiva, removerCategoriaPlanoContas, despesas, receitas } =
+  const { categoriasPlanoContas, addCategoriaPlanoContas, updateCategoriaPlanoContas, toggleCategoriaAtiva, removerCategoriaPlanoContas, despesas, receitas } =
     useFinance();
 
   const [tab, setTab] = useState<'DESPESA' | 'RECEITA'>('DESPESA');
+  const [showModal, setShowModal] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nome, setNome] = useState('');
   const [grupo, setGrupo] = useState('');
 
@@ -19,14 +21,36 @@ export const PlanoContasView: React.FC = () => {
       ? despesas.some((d) => d.categoria === nomeCategoria)
       : receitas.some((r) => r.categoria === nomeCategoria);
 
-  const handleAdd = (e: React.FormEvent) => {
+  const abrirNovo = () => {
+    setEditandoId(null);
+    setNome('');
+    setGrupo('');
+    setShowModal(true);
+  };
+
+  const abrirEdicao = (c: any) => {
+    setEditandoId(c.id);
+    setNome(c.nome);
+    setGrupo(c.grupo || '');
+    setShowModal(true);
+  };
+
+  const handleSalvar = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) return;
-    if (categoriasPlanoContas.some((c) => c.tipo === tab && c.nome.toLowerCase() === nome.trim().toLowerCase())) {
+    const duplicado = categoriasPlanoContas.some(
+      (c) => c.tipo === tab && c.id !== editandoId && c.nome.toLowerCase() === nome.trim().toLowerCase()
+    );
+    if (duplicado) {
       alert('Já existe uma categoria com esse nome.');
       return;
     }
-    addCategoriaPlanoContas({ nome: nome.trim(), tipo: tab, grupo: grupo.trim() || undefined, ativa: true });
+    if (editandoId) {
+      updateCategoriaPlanoContas(editandoId, { nome: nome.trim(), grupo: grupo.trim() || undefined });
+    } else {
+      addCategoriaPlanoContas({ nome: nome.trim(), tipo: tab, grupo: grupo.trim() || undefined, ativa: true });
+    }
+    setShowModal(false);
     setNome('');
     setGrupo('');
   };
@@ -53,47 +77,32 @@ export const PlanoContasView: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex gap-2 my-4 bg-stone-100 rounded-xl p-1 w-fit">
+      <div className="flex items-center justify-between my-4">
+        <div className="flex gap-2 bg-stone-100 rounded-xl p-1 w-fit">
+          <button
+            onClick={() => setTab('DESPESA')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              tab === 'DESPESA' ? 'bg-white shadow-xs text-rose-700' : 'text-stone-500'
+            }`}
+          >
+            <ArrowUpRight className="w-3.5 h-3.5" /> Despesas
+          </button>
+          <button
+            onClick={() => setTab('RECEITA')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              tab === 'RECEITA' ? 'bg-white shadow-xs text-emerald-700' : 'text-stone-500'
+            }`}
+          >
+            <ArrowDownLeft className="w-3.5 h-3.5" /> Receitas
+          </button>
+        </div>
         <button
-          onClick={() => setTab('DESPESA')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-            tab === 'DESPESA' ? 'bg-white shadow-xs text-rose-700' : 'text-stone-500'
-          }`}
+          onClick={abrirNovo}
+          className="flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs py-2 px-4 rounded-xl"
         >
-          <ArrowUpRight className="w-3.5 h-3.5" /> Despesas
-        </button>
-        <button
-          onClick={() => setTab('RECEITA')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-            tab === 'RECEITA' ? 'bg-white shadow-xs text-emerald-700' : 'text-stone-500'
-          }`}
-        >
-          <ArrowDownLeft className="w-3.5 h-3.5" /> Receitas
+          <Plus className="w-4 h-4" /> Nova Categoria
         </button>
       </div>
-
-      <form onSubmit={handleAdd} className="bg-white border border-stone-200 rounded-2xl p-4 mb-4 flex flex-col sm:flex-row gap-2">
-        <input
-          type="text"
-          placeholder={tab === 'DESPESA' ? 'Nova categoria de despesa (ex: Adubos & Fertilizantes)' : 'Nova categoria de receita (ex: Venda de Gado)'}
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          className="flex-1 px-3 py-2 text-xs border border-stone-200 rounded-lg"
-        />
-        <input
-          type="text"
-          placeholder="Grupo contábil (opcional, ex: Custos Operacionais)"
-          value={grupo}
-          onChange={(e) => setGrupo(e.target.value)}
-          className="sm:w-64 px-3 py-2 text-xs border border-stone-200 rounded-lg"
-        />
-        <button
-          type="submit"
-          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-lg"
-        >
-          <Plus className="w-3.5 h-3.5" /> Adicionar
-        </button>
-      </form>
 
       <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden">
         {categorias.length === 0 ? (
@@ -110,6 +119,9 @@ export const PlanoContasView: React.FC = () => {
                   <input type="checkbox" checked={c.ativa} onChange={() => toggleCategoriaAtiva(c.id)} className="rounded" />
                   Ativa
                 </label>
+                <button onClick={() => abrirEdicao(c)} className="text-stone-400 hover:text-stone-700">
+                  <Pencil className="w-4 h-4" />
+                </button>
                 <button onClick={() => handleRemover(c.id, c.nome)} className="text-stone-400 hover:text-rose-600">
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -121,6 +133,42 @@ export const PlanoContasView: React.FC = () => {
       <p className="text-[11px] text-stone-400 mt-2">
         Categorias inativas somem das opções de novo lançamento, mas continuam aparecendo nos lançamentos antigos e nos relatórios.
       </p>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-sm overflow-hidden">
+            <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
+              <h2 className="font-extrabold text-sm">{editandoId ? 'Editar Categoria' : `Nova Categoria de ${tab === 'DESPESA' ? 'Despesa' : 'Receita'}`}</h2>
+              <button onClick={() => setShowModal(false)} className="text-stone-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSalvar} className="p-5 space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">Nome da categoria</label>
+                <input
+                  placeholder={tab === 'DESPESA' ? 'Ex: Adubos & Fertilizantes' : 'Ex: Venda de Gado'}
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-200 rounded-lg"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">Grupo contábil (opcional)</label>
+                <input
+                  placeholder="Ex: Custos Operacionais"
+                  value={grupo}
+                  onChange={(e) => setGrupo(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-200 rounded-lg"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg">Cancelar</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl">{editandoId ? 'Salvar' : 'Adicionar'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -2,9 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
 import { jwtVerify } from 'jose';
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'troque-esta-chave-antes-de-ir-para-producao'
-);
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET não configurado nas Environment Variables.');
+}
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 const MASTER_EMAILS = (process.env.MASTER_EMAILS || 'miguel@mtec.tec.br')
   .split(',')
   .map((e) => e.trim().toLowerCase())
@@ -18,14 +19,17 @@ async function exigirMaster(req: VercelRequest): Promise<boolean> {
   const token = (req as any).cookies?.session;
   if (!token) return false;
   let uid: string;
+  let sv: number;
   try {
     const { payload } = await jwtVerify(token, secret);
     uid = payload.uid as string;
+    sv = (payload.sv as number) || 1;
   } catch {
     return false;
   }
-  const r = await sql`SELECT email FROM usuarios_auth WHERE id = ${uid}`;
+  const r = await sql`SELECT email, sessao_versao FROM usuarios_auth WHERE id = ${uid}`;
   if (r.rows.length === 0) return false;
+  if ((r.rows[0].sessao_versao || 1) !== sv) return false;
   return isMasterEmail(r.rows[0].email as string);
 }
 

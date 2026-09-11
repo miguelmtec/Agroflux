@@ -8,6 +8,7 @@ import {
   Plus,
   X,
   Trash2,
+  Pencil,
   Sprout,
   Boxes,
 } from 'lucide-react';
@@ -23,10 +24,14 @@ export const ComprasEstoqueView: React.FC = () => {
   const {
     fornecedores,
     addFornecedor,
+    updateFornecedor,
     toggleFornecedorAtivo,
+    removerFornecedor,
     produtos,
     addProduto,
+    updateProduto,
     toggleProdutoAtivo,
+    removerProduto,
     pedidosCompra,
     addPedidoCompra,
     cancelarPedidoCompra,
@@ -35,10 +40,14 @@ export const ComprasEstoqueView: React.FC = () => {
     fazendas,
     talhoes,
     addTalhao,
+    updateTalhao,
     toggleTalhaoAtivo,
+    removerTalhao,
     safras,
     addSafra,
+    updateSafra,
     toggleSafraAtiva,
+    removerSafra,
     consumos,
     registrarConsumoInsumo,
   } = useFinance();
@@ -98,19 +107,23 @@ export const ComprasEstoqueView: React.FC = () => {
       </div>
 
       {tab === 'fornecedores' && (
-        <PainelFornecedores fornecedores={fornecedores} addFornecedor={addFornecedor} toggleFornecedorAtivo={toggleFornecedorAtivo} />
+        <PainelFornecedores fornecedores={fornecedores} addFornecedor={addFornecedor} updateFornecedor={updateFornecedor} toggleFornecedorAtivo={toggleFornecedorAtivo} removerFornecedor={removerFornecedor} />
       )}
       {tab === 'produtos' && (
-        <PainelProdutos produtos={produtos} addProduto={addProduto} toggleProdutoAtivo={toggleProdutoAtivo} />
+        <PainelProdutos produtos={produtos} addProduto={addProduto} updateProduto={updateProduto} toggleProdutoAtivo={toggleProdutoAtivo} removerProduto={removerProduto} />
       )}
       {tab === 'safras' && (
         <PainelSafrasTalhoes
           safras={safras}
           addSafra={addSafra}
+          updateSafra={updateSafra}
           toggleSafraAtiva={toggleSafraAtiva}
+          removerSafra={removerSafra}
           talhoes={talhoes}
           addTalhao={addTalhao}
+          updateTalhao={updateTalhao}
           toggleTalhaoAtivo={toggleTalhaoAtivo}
+          removerTalhao={removerTalhao}
           fazendas={fazendas}
         />
       )}
@@ -143,8 +156,9 @@ export const ComprasEstoqueView: React.FC = () => {
 // ---------- Fornecedores ----------
 const TIPOS_FORNECEDOR = ['Revenda Agrícola', 'Cooperativa', 'Indústria', 'Distribuidor', 'Transportadora', 'Prestador de Serviço'];
 
-const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, toggleFornecedorAtivo }) => {
+const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, updateFornecedor, toggleFornecedorAtivo, removerFornecedor }) => {
   const [showModal, setShowModal] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState('');
@@ -162,13 +176,35 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, toggle
     setEmail(''); setContatoResponsavel(''); setCidade(''); setUf(''); setObservacao('');
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const abrirNovo = () => {
+    setEditandoId(null);
+    limpar();
+    setShowModal(true);
+  };
+
+  const abrirEdicao = (f: any) => {
+    setEditandoId(f.id);
+    setNome(f.nome); setTipo(f.tipo || ''); setCnpjCpf(f.cnpjCpf || ''); setInscricaoEstadual(f.inscricaoEstadual || '');
+    setTelefone(f.telefone || ''); setEmail(f.email || ''); setContatoResponsavel(f.contatoResponsavel || '');
+    setCidade(f.cidade || ''); setUf(f.uf || ''); setObservacao(f.observacao || '');
+    setShowModal(true);
+  };
+
+  const handleExcluir = (id: string) => {
+    if (!confirm('Excluir esse fornecedor?')) return;
+    const resultado = removerFornecedor(id);
+    if (!resultado.success) alert(resultado.message);
+  };
+
+  const handleSalvar = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) return;
-    addFornecedor({
-      nome: nome.trim(), tipo, cnpjCpf, inscricaoEstadual, telefone, email,
-      contatoResponsavel, cidade, uf, observacao, ativo: true,
-    });
+    const dados = { nome: nome.trim(), tipo, cnpjCpf, inscricaoEstadual, telefone, email, contatoResponsavel, cidade, uf, observacao };
+    if (editandoId) {
+      updateFornecedor(editandoId, dados);
+    } else {
+      addFornecedor({ ...dados, ativo: true });
+    }
     setShowModal(false);
     limpar();
   };
@@ -184,7 +220,7 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, toggle
 
       <div className="flex justify-end mb-3">
         <button
-          onClick={() => setShowModal(true)}
+          onClick={abrirNovo}
           className="flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs py-2 px-4 rounded-xl"
         >
           <Plus className="w-4 h-4" /> Novo Fornecedor
@@ -208,12 +244,13 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, toggle
                       {f.tipo || '—'} {f.cidade ? `· ${f.cidade}${f.uf ? '/' + f.uf : ''}` : ''}
                     </p>
                   </div>
-                  <label
-                    className="flex items-center gap-1.5 text-stone-500 cursor-pointer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <input type="checkbox" checked={f.ativo} onChange={() => toggleFornecedorAtivo(f.id)} className="rounded" /> Ativo
-                  </label>
+                  <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                    <label className="flex items-center gap-1.5 text-stone-500 cursor-pointer">
+                      <input type="checkbox" checked={f.ativo} onChange={() => toggleFornecedorAtivo(f.id)} className="rounded" /> Ativo
+                    </label>
+                    <button onClick={() => abrirEdicao(f)} className="text-stone-400 hover:text-stone-700"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleExcluir(f.id)} className="text-stone-400 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
                 </div>
                 {aberto && (
                   <div className="px-4 pb-3 grid grid-cols-2 gap-x-4 gap-y-1 text-stone-600">
@@ -235,10 +272,10 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, toggle
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden my-6">
             <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
-              <h2 className="font-extrabold text-sm">Novo Fornecedor</h2>
+              <h2 className="font-extrabold text-sm">{editandoId ? 'Editar Fornecedor' : 'Novo Fornecedor'}</h2>
               <button onClick={() => setShowModal(false)} className="text-stone-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleAdd} className="p-5 space-y-3 text-xs">
+            <form onSubmit={handleSalvar} className="p-5 space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className={labelClass}>Nome</label>
@@ -289,7 +326,7 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, toggle
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg">Cancelar</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl">Adicionar</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl">{editandoId ? 'Salvar' : 'Adicionar'}</button>
               </div>
             </form>
           </div>
@@ -303,8 +340,9 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, toggle
 const CATEGORIAS_PRODUTO = ['Defensivo Agrícola', 'Semente', 'Fertilizante', 'Corretivo de Solo', 'Ração/Nutrição Animal', 'Combustível', 'Peças & Manutenção', 'Outro Insumo'];
 const UNIDADES_PRODUTO = ['kg', 'Litro (L)', 'Saca 50kg', 'Saca 60kg', 'Big Bag 1000kg', 'Tonelada', 'Fardo', 'Caixa', 'Unidade'];
 
-const PainelProdutos: React.FC<any> = ({ produtos, addProduto, toggleProdutoAtivo }) => {
+const PainelProdutos: React.FC<any> = ({ produtos, addProduto, updateProduto, toggleProdutoAtivo, removerProduto }) => {
   const [showModal, setShowModal] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState('Defensivo Agrícola');
   const [unidadeMedida, setUnidadeMedida] = useState('Litro (L)');
@@ -314,16 +352,39 @@ const PainelProdutos: React.FC<any> = ({ produtos, addProduto, toggleProdutoAtiv
   const sugestoesCategoria = Array.from(new Set([...CATEGORIAS_PRODUTO, ...produtos.map((p: any) => p.categoria)]));
   const sugestoesUnidade = Array.from(new Set([...UNIDADES_PRODUTO, ...produtos.map((p: any) => p.unidadeMedida)]));
 
-  const handleAdd = (e: React.FormEvent) => {
+  const abrirNovo = () => {
+    setEditandoId(null);
+    setNome(''); setCategoria('Defensivo Agrícola'); setUnidadeMedida('Litro (L)'); setEstoqueMinimo('');
+    setShowModal(true);
+  };
+
+  const abrirEdicao = (p: any) => {
+    setEditandoId(p.id);
+    setNome(p.nome); setCategoria(p.categoria); setUnidadeMedida(p.unidadeMedida);
+    setEstoqueMinimo(p.estoqueMinimo !== undefined ? String(p.estoqueMinimo) : '');
+    setShowModal(true);
+  };
+
+  const handleExcluir = (id: string) => {
+    if (!confirm('Excluir esse produto?')) return;
+    const resultado = removerProduto(id);
+    if (!resultado.success) alert(resultado.message);
+  };
+
+  const handleSalvar = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim() || !categoria.trim() || !unidadeMedida.trim()) return;
-    addProduto({
+    const dados = {
       nome: nome.trim(),
       categoria: categoria.trim(),
       unidadeMedida: unidadeMedida.trim(),
       estoqueMinimo: estoqueMinimo ? Number(estoqueMinimo) : undefined,
-      ativo: true,
-    });
+    };
+    if (editandoId) {
+      updateProduto(editandoId, dados);
+    } else {
+      addProduto({ ...dados, ativo: true });
+    }
     setShowModal(false);
     setNome('');
     setEstoqueMinimo('');
@@ -340,7 +401,7 @@ const PainelProdutos: React.FC<any> = ({ produtos, addProduto, toggleProdutoAtiv
 
       <div className="flex justify-end mb-3">
         <button
-          onClick={() => setShowModal(true)}
+          onClick={abrirNovo}
           className="flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs py-2 px-4 rounded-xl"
         >
           <Plus className="w-4 h-4" /> Novo Produto
@@ -367,23 +428,25 @@ const PainelProdutos: React.FC<any> = ({ produtos, addProduto, toggleProdutoAtiv
                 <label className="flex items-center gap-1.5 text-stone-500 cursor-pointer">
                   <input type="checkbox" checked={p.ativo} onChange={() => toggleProdutoAtivo(p.id)} className="rounded" /> Ativo
                 </label>
+                <button onClick={() => abrirEdicao(p)} className="text-stone-400 hover:text-stone-700"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => handleExcluir(p.id)} className="text-stone-400 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
           ))
         )}
       </div>
       <p className="text-[11px] text-stone-400 mt-2">
-        O estoque só muda quando você registrar a entrega de um pedido (próxima etapa) ou o consumo na lavoura — por enquanto, começa em 0.
+        O estoque só muda quando você registrar a entrega de um pedido ou o consumo na lavoura.
       </p>
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-sm overflow-hidden">
             <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
-              <h2 className="font-extrabold text-sm">Novo Produto</h2>
+              <h2 className="font-extrabold text-sm">{editandoId ? 'Editar Produto' : 'Novo Produto'}</h2>
               <button onClick={() => setShowModal(false)} className="text-stone-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleAdd} className="p-5 space-y-3 text-xs">
+            <form onSubmit={handleSalvar} className="p-5 space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-stone-700 mb-1">Nome</label>
                 <input placeholder="Ex: Glifosato 500ml, Semente Soja TMG7062" value={nome} onChange={(e) => setNome(e.target.value)} className="w-full px-3 py-2 border border-stone-200 rounded-lg" required />
@@ -416,7 +479,7 @@ const PainelProdutos: React.FC<any> = ({ produtos, addProduto, toggleProdutoAtiv
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg">Cancelar</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl">Adicionar</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl">{editandoId ? 'Salvar' : 'Adicionar'}</button>
               </div>
             </form>
           </div>
@@ -829,9 +892,11 @@ const ModalPagamento: React.FC<any> = ({ pedido, onClose, onConfirmar }) => {
 };
 
 // ---------- Fase 4: Safras & Talhões ----------
-const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva, talhoes, addTalhao, toggleTalhaoAtivo, fazendas }) => {
+const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, updateSafra, toggleSafraAtiva, removerSafra, talhoes, addTalhao, updateTalhao, toggleTalhaoAtivo, removerTalhao, fazendas }) => {
   const [showSafraModal, setShowSafraModal] = useState(false);
   const [showTalhaoModal, setShowTalhaoModal] = useState(false);
+  const [editandoSafraId, setEditandoSafraId] = useState<string | null>(null);
+  const [editandoTalhaoId, setEditandoTalhaoId] = useState<string | null>(null);
   const [nomeSafra, setNomeSafra] = useState('');
   const [inicioSafra, setInicioSafra] = useState('');
   const [fimSafra, setFimSafra] = useState('');
@@ -840,24 +905,70 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
   const [areaTalhao, setAreaTalhao] = useState('');
   const [culturaTalhao, setCulturaTalhao] = useState('');
 
-  const handleAddSafra = (e: React.FormEvent) => {
+  const abrirNovaSafra = () => {
+    setEditandoSafraId(null);
+    setNomeSafra(''); setInicioSafra(''); setFimSafra('');
+    setShowSafraModal(true);
+  };
+
+  const abrirEdicaoSafra = (s: any) => {
+    setEditandoSafraId(s.id);
+    setNomeSafra(s.nome); setInicioSafra(s.dataInicio || ''); setFimSafra(s.dataFim || '');
+    setShowSafraModal(true);
+  };
+
+  const handleExcluirSafra = (id: string) => {
+    if (!confirm('Excluir essa safra?')) return;
+    const resultado = removerSafra(id);
+    if (!resultado.success) alert(resultado.message);
+  };
+
+  const handleSalvarSafra = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomeSafra.trim()) return;
-    addSafra({ nome: nomeSafra.trim(), dataInicio: inicioSafra || undefined, dataFim: fimSafra || undefined, ativa: true });
+    const dados = { nome: nomeSafra.trim(), dataInicio: inicioSafra || undefined, dataFim: fimSafra || undefined };
+    if (editandoSafraId) {
+      updateSafra(editandoSafraId, dados);
+    } else {
+      addSafra({ ...dados, ativa: true });
+    }
     setShowSafraModal(false);
     setNomeSafra(''); setInicioSafra(''); setFimSafra('');
   };
 
-  const handleAddTalhao = (e: React.FormEvent) => {
+  const abrirNovoTalhao = () => {
+    setEditandoTalhaoId(null);
+    setNomeTalhao(''); setFazendaTalhao(fazendas[0]?.id || ''); setAreaTalhao(''); setCulturaTalhao('');
+    setShowTalhaoModal(true);
+  };
+
+  const abrirEdicaoTalhao = (t: any) => {
+    setEditandoTalhaoId(t.id);
+    setNomeTalhao(t.nome); setFazendaTalhao(t.fazendaId);
+    setAreaTalhao(t.areaHectares !== undefined ? String(t.areaHectares) : ''); setCulturaTalhao(t.culturaAtual || '');
+    setShowTalhaoModal(true);
+  };
+
+  const handleExcluirTalhao = (id: string) => {
+    if (!confirm('Excluir esse talhão?')) return;
+    const resultado = removerTalhao(id);
+    if (!resultado.success) alert(resultado.message);
+  };
+
+  const handleSalvarTalhao = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomeTalhao.trim() || !fazendaTalhao) return;
-    addTalhao({
+    const dados = {
       nome: nomeTalhao.trim(),
       fazendaId: fazendaTalhao,
       areaHectares: areaTalhao ? Number(areaTalhao) : undefined,
       culturaAtual: culturaTalhao || undefined,
-      ativo: true,
-    });
+    };
+    if (editandoTalhaoId) {
+      updateTalhao(editandoTalhaoId, dados);
+    } else {
+      addTalhao({ ...dados, ativo: true });
+    }
     setShowTalhaoModal(false);
     setNomeTalhao(''); setAreaTalhao(''); setCulturaTalhao('');
   };
@@ -867,7 +978,7 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="font-bold text-stone-800 text-xs">Safras</p>
-          <button onClick={() => setShowSafraModal(true)} className="flex items-center gap-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900">
+          <button onClick={abrirNovaSafra} className="flex items-center gap-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900">
             <Plus className="w-3 h-3" /> Nova Safra
           </button>
         </div>
@@ -883,9 +994,13 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
                     <p className="text-stone-500">{s.dataInicio ? formatDate(s.dataInicio) : '?'} — {s.dataFim ? formatDate(s.dataFim) : '?'}</p>
                   )}
                 </div>
-                <label className="flex items-center gap-1.5 text-stone-500 cursor-pointer">
-                  <input type="checkbox" checked={s.ativa} onChange={() => toggleSafraAtiva(s.id)} className="rounded" /> Ativa
-                </label>
+                <div className="flex items-center gap-2.5">
+                  <label className="flex items-center gap-1.5 text-stone-500 cursor-pointer">
+                    <input type="checkbox" checked={s.ativa} onChange={() => toggleSafraAtiva(s.id)} className="rounded" /> Ativa
+                  </label>
+                  <button onClick={() => abrirEdicaoSafra(s)} className="text-stone-400 hover:text-stone-700"><Pencil className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => handleExcluirSafra(s.id)} className="text-stone-400 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
               </div>
             ))
           )}
@@ -895,7 +1010,7 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="font-bold text-stone-800 text-xs">Talhões</p>
-          <button onClick={() => setShowTalhaoModal(true)} className="flex items-center gap-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900">
+          <button onClick={abrirNovoTalhao} className="flex items-center gap-1 text-[11px] font-semibold text-stone-600 hover:text-stone-900">
             <Plus className="w-3 h-3" /> Novo Talhão
           </button>
         </div>
@@ -913,9 +1028,13 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
                       {fazenda?.nome || 'fazenda removida'}{t.areaHectares ? ` · ${t.areaHectares} ha` : ''}{t.culturaAtual ? ` · ${t.culturaAtual}` : ''}
                     </p>
                   </div>
-                  <label className="flex items-center gap-1.5 text-stone-500 cursor-pointer">
-                    <input type="checkbox" checked={t.ativo} onChange={() => toggleTalhaoAtivo(t.id)} className="rounded" /> Ativo
-                  </label>
+                  <div className="flex items-center gap-2.5">
+                    <label className="flex items-center gap-1.5 text-stone-500 cursor-pointer">
+                      <input type="checkbox" checked={t.ativo} onChange={() => toggleTalhaoAtivo(t.id)} className="rounded" /> Ativo
+                    </label>
+                    <button onClick={() => abrirEdicaoTalhao(t)} className="text-stone-400 hover:text-stone-700"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleExcluirTalhao(t.id)} className="text-stone-400 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
                 </div>
               );
             })
@@ -927,10 +1046,10 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-sm overflow-hidden">
             <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
-              <h2 className="font-extrabold text-sm">Nova Safra</h2>
+              <h2 className="font-extrabold text-sm">{editandoSafraId ? 'Editar Safra' : 'Nova Safra'}</h2>
               <button onClick={() => setShowSafraModal(false)} className="text-stone-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleAddSafra} className="p-5 space-y-3 text-xs">
+            <form onSubmit={handleSalvarSafra} className="p-5 space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-stone-700 mb-1">Nome da safra</label>
                 <input placeholder='Ex: "Verão 2025/26"' value={nomeSafra} onChange={(e) => setNomeSafra(e.target.value)} className="w-full px-3 py-2 border border-stone-200 rounded-lg" required />
@@ -947,7 +1066,7 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
                 <button type="button" onClick={() => setShowSafraModal(false)} className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg">Cancelar</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl">Adicionar</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl">{editandoSafraId ? 'Salvar' : 'Adicionar'}</button>
               </div>
             </form>
           </div>
@@ -958,10 +1077,10 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-sm overflow-hidden">
             <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
-              <h2 className="font-extrabold text-sm">Novo Talhão</h2>
+              <h2 className="font-extrabold text-sm">{editandoTalhaoId ? 'Editar Talhão' : 'Novo Talhão'}</h2>
               <button onClick={() => setShowTalhaoModal(false)} className="text-stone-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleAddTalhao} className="p-5 space-y-3 text-xs">
+            <form onSubmit={handleSalvarTalhao} className="p-5 space-y-3 text-xs">
               {fazendas.length === 0 ? (
                 <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
                   Cadastre uma Fazenda primeiro, em "Fazendas & Usuários".
@@ -992,7 +1111,7 @@ const PainelSafrasTalhoes: React.FC<any> = ({ safras, addSafra, toggleSafraAtiva
               )}
               <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
                 <button type="button" onClick={() => setShowTalhaoModal(false)} className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-lg">Cancelar</button>
-                <button type="submit" disabled={fazendas.length === 0} className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl disabled:opacity-40">Adicionar</button>
+                <button type="submit" disabled={fazendas.length === 0} className="px-5 py-2 font-bold bg-stone-900 text-white rounded-xl disabled:opacity-40">{editandoTalhaoId ? 'Salvar' : 'Adicionar'}</button>
               </div>
             </form>
           </div>
