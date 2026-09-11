@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const cleanEmail = String(email).trim().toLowerCase();
 
     const result = await sql`
-      SELECT ua.id, ua.senha_hash, ua.familia_id, ua.tentativas_falhas, ua.bloqueado_ate, ua.sessao_versao,
+      SELECT ua.id, ua.senha_hash, ua.familia_id, ua.tentativas_falhas, ua.bloqueado_ate, ua.sessao_versao, ua.senha_provisoria,
              f.nome_familia, f.dados, f.status, f.acesso_ate, f.limite_usuarios
       FROM usuarios_auth ua
       JOIN familias f ON f.id = ua.familia_id
@@ -101,6 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       statusAcesso: expirou ? 'expirado' : row.status,
       acessoAte: row.acesso_ate,
       limiteUsuarios: row.limite_usuarios,
+      precisaTrocarSenha: Boolean(row.senha_provisoria),
     });
   } catch (err) {
     console.error('Erro em /api/auth/login:', err);

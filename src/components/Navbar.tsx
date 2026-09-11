@@ -163,7 +163,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={onOpenAuth}
               className="text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 px-3 py-1.5 rounded-xl transition-colors"
             >
-              Entrar com Google
+              Entrar
             </button>
           )}
         </div>

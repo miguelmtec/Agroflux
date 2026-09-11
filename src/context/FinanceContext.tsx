@@ -107,6 +107,14 @@ interface FinanceContextType {
   statusAcesso: string;
   acessoAte: string | null;
   limiteUsuarios: number;
+  precisaTrocarSenha: boolean;
+  convidarUsuario: (
+    nome: string,
+    email: string,
+    perfil: string,
+    integranteId?: string
+  ) => Promise<{ success: boolean; senhaTemporaria?: string; message?: string }>;
+  trocarSenha: (senhaAtual: string, novaSenha: string) => Promise<{ success: boolean; message?: string }>;
   login: (email: string, senha: string) => Promise<{ success: boolean; message?: string }>;
   signUp: (
     email: string,
@@ -261,6 +269,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [statusAcesso, setStatusAcesso] = useState('pendente');
   const [acessoAte, setAcessoAte] = useState<string | null>(null);
   const [limiteUsuarios, setLimiteUsuarios] = useState(1);
+  const [precisaTrocarSenha, setPrecisaTrocarSenha] = useState(false);
 
   const [usuarios, setUsuarios] = useState<UsuarioAutorizado[]>([]);
   const [currentUser, setCurrentUser] = useState<UsuarioAutorizado | null>(null);
@@ -337,6 +346,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setStatusAcesso(resp.data.statusAcesso || 'pendente');
         setAcessoAte(resp.data.acessoAte || null);
         setLimiteUsuarios(resp.data.limiteUsuarios || 1);
+    setPrecisaTrocarSenha(Boolean(resp.data.precisaTrocarSenha));
         aplicarDados(resp.data.dados, resp.data.email || '');
         hydratedRef.current = true;
       }
@@ -448,6 +458,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setStatusAcesso(resp.data.statusAcesso || 'pendente');
     setAcessoAte(resp.data.acessoAte || null);
     setLimiteUsuarios(resp.data.limiteUsuarios || 1);
+    setPrecisaTrocarSenha(Boolean(resp.data.precisaTrocarSenha));
     aplicarDados(resp.data.dados, email);
     hydratedRef.current = true;
     return { success: true };
@@ -466,6 +477,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setStatusAcesso(resp.data.statusAcesso || 'pendente');
     setAcessoAte(resp.data.acessoAte || null);
     setLimiteUsuarios(resp.data.limiteUsuarios || 1);
+    setPrecisaTrocarSenha(Boolean(resp.data.precisaTrocarSenha));
     aplicarDados(resp.data.dados, email);
     hydratedRef.current = true;
     return { success: true };
@@ -480,7 +492,42 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setFamiliaId(null);
       setCurrentUser(null);
       setMinhaEmail('');
+      setPrecisaTrocarSenha(false);
     });
+  };
+
+  const convidarUsuario = async (
+    nome: string,
+    email: string,
+    perfil: string,
+    integranteId?: string
+  ): Promise<{ success: boolean; senhaTemporaria?: string; message?: string }> => {
+    const resp = await api.convidarUsuario({ nome, email, perfil, integranteId });
+    if (!resp.ok) {
+      return { success: false, message: resp.data?.error || 'Não foi possível convidar o usuário.' };
+    }
+    // Atualiza a lista local com o mesmo registro que o servidor já salvou,
+    // sem precisar recarregar tudo.
+    setUsuarios((prev) => [...prev, resp.data.usuario]);
+    return { success: true, senhaTemporaria: resp.data.senhaTemporaria };
+  };
+
+  const trocarSenha = async (
+    senhaAtual: string,
+    novaSenha: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    const resp = await api.trocarSenha({ senhaAtual, novaSenha });
+    if (!resp.ok) {
+      return { success: false, message: resp.data?.error || 'Não foi possível trocar a senha.' };
+    }
+    // A troca de senha invalida a sessão no servidor (por segurança) — a
+    // pessoa precisa logar de novo, já com a senha nova.
+    hydratedRef.current = false;
+    setFamiliaId(null);
+    setCurrentUser(null);
+    setMinhaEmail('');
+    setPrecisaTrocarSenha(false);
+    return { success: true };
   };
 
   // Dynamic Bank Account Balance Calculation
@@ -1674,6 +1721,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         statusAcesso,
         acessoAte,
         limiteUsuarios,
+        precisaTrocarSenha,
+        convidarUsuario,
+        trocarSenha,
         login,
         signUp,
         logout,

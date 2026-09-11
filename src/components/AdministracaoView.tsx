@@ -31,6 +31,7 @@ export const AdministracaoView: React.FC = () => {
     updateUsuarioPerfil,
     updateUsuarioNome,
     addUsuarioPendente,
+    convidarUsuario,
     fecharMesFinanceiro,
     currentUser,
   } = useFinance();
@@ -57,22 +58,36 @@ export const AdministracaoView: React.FC = () => {
 
   const isAdmin = currentUser?.perfil === 'ADMINISTRADOR';
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const [senhaGerada, setSenhaGerada] = useState<{ nome: string; email: string; senha: string } | null>(null);
+  const [enviandoConvite, setEnviandoConvite] = useState(false);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.includes('@')) {
-      alert('Informe um e-mail Google válido.');
+      alert('Informe um e-mail válido.');
       return;
     }
 
-    addUsuarioPendente(newEmail.trim(), newName.trim(), newIntegranteId);
-    // If admin is creating, immediately set profile and approve
-    const createdUser = usuarios.find((u) => u.emailGoogle.toLowerCase() === newEmail.trim().toLowerCase());
-    if (createdUser) {
-      updateUsuarioPerfil(createdUser.id, newPerfil);
-      approveUsuario(createdUser.id);
+    setEnviandoConvite(true);
+    const resultado = await convidarUsuario(
+      newName.trim() || newEmail.trim(),
+      newEmail.trim(),
+      newPerfil,
+      newIntegranteId || undefined
+    );
+    setEnviandoConvite(false);
+
+    if (!resultado.success) {
+      alert(resultado.message || 'Não foi possível convidar esse usuário.');
+      return;
     }
 
     setShowAddUserModal(false);
+    setSenhaGerada({
+      nome: newName.trim() || newEmail.trim(),
+      email: newEmail.trim().toLowerCase(),
+      senha: resultado.senhaTemporaria || '',
+    });
     setNewEmail('');
     setNewName('');
   };
@@ -97,7 +112,7 @@ export const AdministracaoView: React.FC = () => {
             Administração, Segurança & Auditoria
           </h1>
           <p className="text-xs text-stone-500">
-            Controle de acesso Google OAuth, permissões granulares, trilha de auditoria e encerramento contábil
+            Controle de acesso, permissões granulares, trilha de auditoria e encerramento contábil
           </p>
         </div>
 
@@ -106,7 +121,7 @@ export const AdministracaoView: React.FC = () => {
             onClick={() => setShowAddUserModal(true)}
             className="flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-colors shadow-2xs"
           >
-            <Plus className="w-3.5 h-3.5" /> Pré-Autorizar E-mail Google
+            <Plus className="w-3.5 h-3.5" /> Pré-Autorizar E-mail
           </button>
         )}
       </div>
@@ -159,7 +174,7 @@ export const AdministracaoView: React.FC = () => {
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs overflow-hidden">
             <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-4">
-              Contas Google Autorizadas no Sistema
+              Contas Autorizadas no Sistema
             </h3>
 
             <div className="divide-y divide-stone-100">
@@ -377,7 +392,7 @@ export const AdministracaoView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-stone-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
             <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
-              <h3 className="font-bold text-sm">Pré-Autorizar Novo E-mail Google</h3>
+              <h3 className="font-bold text-sm">Pré-Autorizar Novo E-mail</h3>
               <button onClick={() => setShowAddUserModal(false)} className="text-stone-400 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
@@ -385,7 +400,7 @@ export const AdministracaoView: React.FC = () => {
 
             <form onSubmit={handleCreateUser} className="p-5 space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-stone-700 mb-1">E-mail Google Autorizado</label>
+                <label className="block font-bold text-stone-700 mb-1">E-mail Autorizado</label>
                 <input
                   type="email"
                   placeholder="exemplo@gmail.com"
@@ -448,12 +463,42 @@ export const AdministracaoView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 font-bold bg-stone-900 text-white hover:bg-stone-800 rounded-lg"
+                  disabled={enviandoConvite}
+                  className="px-4 py-2 font-bold bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-60 rounded-lg"
                 >
-                  Autorizar Acesso Google
+                  {enviandoConvite ? 'Criando acesso...' : 'Autorizar Acesso'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {senhaGerada && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-sm overflow-hidden">
+            <div className="p-4 bg-emerald-700 text-white">
+              <h2 className="font-extrabold text-sm">Acesso criado!</h2>
+            </div>
+            <div className="p-5 text-xs space-y-3">
+              <p className="text-stone-600">
+                Passe esses dados pra <strong>{senhaGerada.nome}</strong> (por WhatsApp, por exemplo). Essa senha só
+                aparece essa vez.
+              </p>
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-1.5">
+                <p><span className="text-stone-400">E-mail:</span> <span className="font-mono font-bold">{senhaGerada.email}</span></p>
+                <p><span className="text-stone-400">Senha provisória:</span> <span className="font-mono font-bold text-emerald-700">{senhaGerada.senha}</span></p>
+              </div>
+              <p className="text-[11px] text-stone-400">
+                No primeiro acesso, a pessoa vai ser obrigada a trocar essa senha por uma só dela.
+              </p>
+              <button
+                onClick={() => setSenhaGerada(null)}
+                className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold"
+              >
+                Ok, já anotei
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const result = await sql`
-      SELECT ua.email, ua.sessao_versao, f.nome_familia, f.dados, f.status, f.acesso_ate, f.limite_usuarios
+      SELECT ua.email, ua.sessao_versao, ua.senha_provisoria, f.nome_familia, f.dados, f.status, f.acesso_ate, f.limite_usuarios
       FROM usuarios_auth ua
       JOIN familias f ON f.id = ua.familia_id
       WHERE ua.id = ${sessao.uid}
@@ -70,6 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       statusAcesso: expirou ? 'expirado' : row.status,
       acessoAte: row.acesso_ate,
       limiteUsuarios: row.limite_usuarios,
+      precisaTrocarSenha: Boolean(row.senha_provisoria),
     });
   } catch (err) {
     console.error('Erro em /api/auth/me:', err);

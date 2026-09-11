@@ -43,6 +43,7 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
     updateUsuarioNome,
     updateUsuario,
     addUsuarioAutorizado,
+    convidarUsuario,
     integrantes,
     updateIntegrante,
     receitas,
@@ -209,35 +210,36 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
     setShowUserModal(false);
   };
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const [senhaGerada, setSenhaGerada] = useState<{ nome: string; email: string; senha: string } | null>(null);
+  const [enviandoConvite, setEnviandoConvite] = useState(false);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName.trim() || !newUserEmail.includes('@')) {
       alert('Informe nome e um e-mail válido para autorização.');
       return;
     }
 
-    addUsuarioAutorizado({
-      nome: newUserName.trim(),
-      emailGoogle: newUserEmail.trim().toLowerCase(),
-      perfil: newUserPerfil,
-      status: 'Ativo',
-      integranteId: newUserIntegranteId || undefined,
-      foto: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-      permissoes: {
-        visualizarFinanceiro: true,
-        lancarDespesas: newUserPerfil !== 'VISUALIZACAO',
-        lancarReceitas: newUserPerfil !== 'VISUALIZACAO',
-        editarLancamentos: newUserPerfil !== 'VISUALIZACAO',
-        excluirLancamentos: newUserPerfil === 'ADMINISTRADOR',
-        visualizarBancos: true,
-        alterarBancos: newUserPerfil === 'ADMINISTRADOR',
-        visualizarCartoes: true,
-        administrarUsuarios: newUserPerfil === 'ADMINISTRADOR',
-      },
-      dataAutorizacao: new Date().toISOString().split('T')[0],
-    });
+    setEnviandoConvite(true);
+    const resultado = await convidarUsuario(
+      newUserName.trim(),
+      newUserEmail.trim().toLowerCase(),
+      newUserPerfil,
+      newUserIntegranteId || undefined
+    );
+    setEnviandoConvite(false);
+
+    if (!resultado.success) {
+      alert(resultado.message || 'Não foi possível convidar esse usuário.');
+      return;
+    }
 
     setShowNewUserModal(false);
+    setSenhaGerada({
+      nome: newUserName.trim(),
+      email: newUserEmail.trim().toLowerCase(),
+      senha: resultado.senhaTemporaria || '',
+    });
     setNewUserName('');
     setNewUserEmail('');
     setNewUserIntegranteId('');
@@ -290,7 +292,7 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
                 onClick={() => setShowNewUserModal(true)}
                 className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs transition-all cursor-pointer"
               >
-                <Plus className="w-4 h-4" /> Novo Usuário Google
+                <Plus className="w-4 h-4" /> Novo Usuário
               </button>
             )}
           </div>
@@ -575,7 +577,7 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
             <ShieldCheck className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
             <div className="text-xs text-orange-950">
               <span className="font-extrabold block text-sm mb-0.5">
-                Acesso Exclusivo por Google OAuth & Edição de Nomes
+                Acesso Exclusivo por Autorização & Edição de Nomes
               </span>
               Nesta aba você pode renomear os usuários, ajustar os nomes dos integrantes do Grupo Leão Ribeiro, vincular contas de e-mail aos membros da família e configurar níveis de permissão (Administrador, Operador ou Visualização).
             </div>
@@ -589,7 +591,7 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
                   Usuários Autorizados no Sistema
                 </h3>
                 <p className="text-xs text-stone-500">
-                  Total de {usuarios.length} usuários com acesso Google liberado
+                  Total de {usuarios.length} usuários com acesso liberado
                 </p>
               </div>
 
@@ -944,7 +946,7 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
 
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  E-mail Google OAuth *
+                  E-mail Autorizado *
                 </label>
                 <input
                   type="email"
@@ -1018,7 +1020,7 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
             <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-emerald-400" />
-                <h2 className="font-extrabold text-sm">Autorizar Novo Usuário Google</h2>
+                <h2 className="font-extrabold text-sm">Autorizar Novo Usuário</h2>
               </div>
               <button
                 onClick={() => setShowNewUserModal(false)}
@@ -1045,7 +1047,7 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
 
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  E-mail Google OAuth *
+                  E-mail Autorizado *
                 </label>
                 <input
                   type="email"
@@ -1098,12 +1100,44 @@ export const FazendasUsuariosView: React.FC<FazendasUsuariosViewProps> = ({ init
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-lg cursor-pointer"
+                  disabled={enviandoConvite}
+                  className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-white font-bold rounded-lg cursor-pointer"
                 >
-                  Autorizar Acesso
+                  {enviandoConvite ? 'Criando acesso...' : 'Autorizar Acesso'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Senha provisória gerada — mostrada UMA vez só, não fica salva em lugar nenhum */}
+      {senhaGerada && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-sm overflow-hidden">
+            <div className="p-4 bg-emerald-700 text-white flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              <h2 className="font-extrabold text-sm">Acesso criado!</h2>
+            </div>
+            <div className="p-5 text-xs space-y-3">
+              <p className="text-stone-600">
+                Passe esses dados pra <strong>{senhaGerada.nome}</strong> (por WhatsApp, por exemplo). Essa senha só
+                aparece essa vez — se perder, você precisa gerar outro acesso.
+              </p>
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-1.5">
+                <p><span className="text-stone-400">E-mail:</span> <span className="font-mono font-bold">{senhaGerada.email}</span></p>
+                <p><span className="text-stone-400">Senha provisória:</span> <span className="font-mono font-bold text-emerald-700">{senhaGerada.senha}</span></p>
+              </div>
+              <p className="text-[11px] text-stone-400">
+                No primeiro acesso, a pessoa vai ser obrigada a trocar essa senha por uma só dela.
+              </p>
+              <button
+                onClick={() => setSenhaGerada(null)}
+                className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold"
+              >
+                Ok, já anotei
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -30,9 +30,10 @@ import { AuthModal } from './components/AuthModal';
 import { PainelMasterView } from './components/PainelMasterView';
 import { PlanoContasView } from './components/PlanoContasView';
 import { ComprasEstoqueView } from './components/ComprasEstoqueView';
+import { TrocarSenhaModal } from './components/TrocarSenhaModal';
 
 const MainAppContent: React.FC = () => {
-  const { currentUser, authLoading, isMaster, acessoLiberado, statusAcesso, acessoAte, logout } = useFinance();
+  const { currentUser, authLoading, isMaster, acessoLiberado, statusAcesso, acessoAte, precisaTrocarSenha, logout } = useFinance();
   const [currentModule, setCurrentModule] = useState<string>('dashboard');
 
   useEffect(() => {
@@ -66,6 +67,10 @@ const MainAppContent: React.FC = () => {
 
   if (!currentUser) {
     return <AuthModal isOpen fullScreen />;
+  }
+
+  if (precisaTrocarSenha) {
+    return <TrocarSenhaModal />;
   }
 
   if (!isMaster && !acessoLiberado) {
