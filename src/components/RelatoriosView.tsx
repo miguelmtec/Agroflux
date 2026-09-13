@@ -172,7 +172,109 @@ export const RelatoriosView: React.FC = () => {
           </div>
 
           {/* Report Body Depending on Selection */}
-          {selectedReportId === 14 ? (
+          {selectedReportId === 5 ? (
+            /* DESPESAS POR FORNECEDOR */
+            (() => {
+              const porFornecedor = new Map<string, { total: number; qtde: number }>();
+              despesas.forEach((d) => {
+                const chave = (d.fornecedor || '').trim() || 'Sem fornecedor identificado';
+                const atual = porFornecedor.get(chave) || { total: 0, qtde: 0 };
+                porFornecedor.set(chave, { total: atual.total + d.valor, qtde: atual.qtde + 1 });
+              });
+              const linhas = Array.from(porFornecedor.entries()).sort((a, b) => b[1].total - a[1].total);
+              const totalGeral = linhas.reduce((s, [, v]) => s + v.total, 0);
+              return (
+                <div className="border border-stone-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 font-bold uppercase text-[10px]">
+                      <tr>
+                        <th className="py-2.5 px-4">Fornecedor</th>
+                        <th className="py-2.5 px-4 text-center">Lançamentos</th>
+                        <th className="py-2.5 px-4 text-right">Total Gasto</th>
+                        <th className="py-2.5 px-4 text-right">% do Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {linhas.length === 0 ? (
+                        <tr><td colSpan={4} className="py-6 px-4 text-center text-stone-400">Nenhuma despesa registrada ainda.</td></tr>
+                      ) : (
+                        linhas.map(([nome, v]) => (
+                          <tr key={nome} className="hover:bg-stone-50">
+                            <td className="py-2.5 px-4 font-bold text-stone-900">{nome}</td>
+                            <td className="py-2.5 px-4 text-center text-stone-600">{v.qtde}</td>
+                            <td className="py-2.5 px-4 text-right font-extrabold text-rose-700">{formatCurrency(v.total)}</td>
+                            <td className="py-2.5 px-4 text-right text-stone-500">
+                              {totalGeral > 0 ? ((v.total / totalGeral) * 100).toFixed(1) : '0'}%
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    {linhas.length > 0 && (
+                      <tfoot>
+                        <tr className="bg-stone-900 text-white font-extrabold">
+                          <td className="py-3 px-4" colSpan={2}>Total geral</td>
+                          <td className="py-3 px-4 text-right">{formatCurrency(totalGeral)}</td>
+                          <td className="py-3 px-4"></td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              );
+            })()
+          ) : selectedReportId === 6 ? (
+            /* RECEITAS POR CLIENTE / PAGADOR */
+            (() => {
+              const porCliente = new Map<string, { total: number; qtde: number }>();
+              receitas.forEach((r) => {
+                const chave = (r.clientePagador || '').trim() || 'Sem cliente identificado';
+                const atual = porCliente.get(chave) || { total: 0, qtde: 0 };
+                porCliente.set(chave, { total: atual.total + r.valor, qtde: atual.qtde + 1 });
+              });
+              const linhas = Array.from(porCliente.entries()).sort((a, b) => b[1].total - a[1].total);
+              const totalGeral = linhas.reduce((s, [, v]) => s + v.total, 0);
+              return (
+                <div className="border border-stone-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 font-bold uppercase text-[10px]">
+                      <tr>
+                        <th className="py-2.5 px-4">Cliente / Pagador</th>
+                        <th className="py-2.5 px-4 text-center">Lançamentos</th>
+                        <th className="py-2.5 px-4 text-right">Total Recebido</th>
+                        <th className="py-2.5 px-4 text-right">% do Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {linhas.length === 0 ? (
+                        <tr><td colSpan={4} className="py-6 px-4 text-center text-stone-400">Nenhuma receita registrada ainda.</td></tr>
+                      ) : (
+                        linhas.map(([nome, v]) => (
+                          <tr key={nome} className="hover:bg-stone-50">
+                            <td className="py-2.5 px-4 font-bold text-stone-900">{nome}</td>
+                            <td className="py-2.5 px-4 text-center text-stone-600">{v.qtde}</td>
+                            <td className="py-2.5 px-4 text-right font-extrabold text-emerald-700">{formatCurrency(v.total)}</td>
+                            <td className="py-2.5 px-4 text-right text-stone-500">
+                              {totalGeral > 0 ? ((v.total / totalGeral) * 100).toFixed(1) : '0'}%
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    {linhas.length > 0 && (
+                      <tfoot>
+                        <tr className="bg-stone-900 text-white font-extrabold">
+                          <td className="py-3 px-4" colSpan={2}>Total geral</td>
+                          <td className="py-3 px-4 text-right">{formatCurrency(totalGeral)}</td>
+                          <td className="py-3 px-4"></td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              );
+            })()
+          ) : selectedReportId === 14 ? (
             /* DRE FAMILIAR (Section 20 - item 14) */
             <div className="space-y-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">

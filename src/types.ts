@@ -339,6 +339,7 @@ export interface Fornecedor {
   id: string;
   nome: string;
   tipo?: string; // ex: Revenda, Cooperativa, Indústria, Distribuidor, Transportadora — texto livre
+  relacao?: 'Fornecedor' | 'Cliente' | 'Ambos'; // define se aparece nas sugestões de despesa, receita, ou nas duas
   cnpjCpf?: string;
   inscricaoEstadual?: string;
   telefone?: string;

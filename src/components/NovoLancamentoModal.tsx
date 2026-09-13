@@ -17,7 +17,7 @@ interface NovoLancamentoModalProps {
 }
 
 export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen, onClose }) => {
-  const { integrantes, fazendas, contas, cartoes, categoriasPlanoContas, selectedMemberId, addDespesa, addReceita, addTransferencia } = useFinance();
+  const { integrantes, fazendas, contas, cartoes, categoriasPlanoContas, selectedMemberId, fornecedores, addDespesa, addReceita, addTransferencia } = useFinance();
 
   const [tipo, setTipo] = useState<'DESPESA' | 'RECEITA' | 'TRANSFERENCIA'>('DESPESA');
   const [meioPagamento, setMeioPagamento] = useState<'A_DEFINIR' | 'CONTA' | 'CARTAO'>('A_DEFINIR');
@@ -458,10 +458,22 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
                     <label className={labelClass}>{tipo === 'DESPESA' ? 'Fornecedor' : 'Cliente / pagador'}</label>
                     <input
                       type="text"
+                      list={tipo === 'DESPESA' ? 'sugestoes-fornecedores' : 'sugestoes-clientes'}
+                      placeholder="Escolha um já cadastrado ou digite um novo"
                       value={tipo === 'DESPESA' ? fornecedor : cliente}
                       onChange={(e) => (tipo === 'DESPESA' ? setFornecedor(e.target.value) : setCliente(e.target.value))}
                       className={inputClass}
                     />
+                    <datalist id="sugestoes-fornecedores">
+                      {fornecedores
+                        .filter((f) => f.ativo && f.relacao !== 'Cliente')
+                        .map((f) => <option key={f.id} value={f.nome} />)}
+                    </datalist>
+                    <datalist id="sugestoes-clientes">
+                      {fornecedores
+                        .filter((f) => f.ativo && (f.relacao === 'Cliente' || f.relacao === 'Ambos'))
+                        .map((f) => <option key={f.id} value={f.nome} />)}
+                    </datalist>
                   </div>
                 )}
 

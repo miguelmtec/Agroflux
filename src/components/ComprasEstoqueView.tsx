@@ -170,10 +170,11 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, update
   const [cidade, setCidade] = useState('');
   const [uf, setUf] = useState('');
   const [observacao, setObservacao] = useState('');
+  const [relacao, setRelacao] = useState<'Fornecedor' | 'Cliente' | 'Ambos'>('Fornecedor');
 
   const limpar = () => {
     setNome(''); setTipo(''); setCnpjCpf(''); setInscricaoEstadual(''); setTelefone('');
-    setEmail(''); setContatoResponsavel(''); setCidade(''); setUf(''); setObservacao('');
+    setEmail(''); setContatoResponsavel(''); setCidade(''); setUf(''); setObservacao(''); setRelacao('Fornecedor');
   };
 
   const abrirNovo = () => {
@@ -186,7 +187,7 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, update
     setEditandoId(f.id);
     setNome(f.nome); setTipo(f.tipo || ''); setCnpjCpf(f.cnpjCpf || ''); setInscricaoEstadual(f.inscricaoEstadual || '');
     setTelefone(f.telefone || ''); setEmail(f.email || ''); setContatoResponsavel(f.contatoResponsavel || '');
-    setCidade(f.cidade || ''); setUf(f.uf || ''); setObservacao(f.observacao || '');
+    setCidade(f.cidade || ''); setUf(f.uf || ''); setObservacao(f.observacao || ''); setRelacao(f.relacao || 'Fornecedor');
     setShowModal(true);
   };
 
@@ -199,7 +200,7 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, update
   const handleSalvar = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) return;
-    const dados = { nome: nome.trim(), tipo, cnpjCpf, inscricaoEstadual, telefone, email, contatoResponsavel, cidade, uf, observacao };
+    const dados = { nome: nome.trim(), tipo, relacao, cnpjCpf, inscricaoEstadual, telefone, email, contatoResponsavel, cidade, uf, observacao };
     if (editandoId) {
       updateFornecedor(editandoId, dados);
     } else {
@@ -242,6 +243,11 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, update
                     <p className={`font-semibold ${f.ativo ? 'text-stone-900' : 'text-stone-400 line-through'}`}>{f.nome}</p>
                     <p className="text-stone-500">
                       {f.tipo || '—'} {f.cidade ? `· ${f.cidade}${f.uf ? '/' + f.uf : ''}` : ''}
+                      {f.relacao && f.relacao !== 'Fornecedor' && (
+                        <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                          {f.relacao}
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
@@ -290,6 +296,14 @@ const PainelFornecedores: React.FC<any> = ({ fornecedores, addFornecedor, update
                     onChange={(e) => setTipo(e.target.value)}
                     className={inputClass}
                   />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelClass}>Essa pessoa/empresa é...</label>
+                  <select value={relacao} onChange={(e) => setRelacao(e.target.value as any)} className={`${inputClass} bg-white`}>
+                    <option value="Fornecedor">Fornecedor (eu compro dele)</option>
+                    <option value="Cliente">Cliente (eu vendo pra ele)</option>
+                    <option value="Ambos">Ambos (compro e vendo)</option>
+                  </select>
                 </div>
                 <div>
                   <label className={labelClass}>CNPJ/CPF</label>
