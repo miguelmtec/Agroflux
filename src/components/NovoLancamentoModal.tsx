@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import {
   X,
@@ -456,24 +456,18 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
                 {tipo !== 'TRANSFERENCIA' && (
                   <div>
                     <label className={labelClass}>{tipo === 'DESPESA' ? 'Fornecedor' : 'Cliente / pagador'}</label>
-                    <input
-                      type="text"
-                      list={tipo === 'DESPESA' ? 'sugestoes-fornecedores' : 'sugestoes-clientes'}
-                      placeholder="Escolha um já cadastrado ou digite um novo"
-                      value={tipo === 'DESPESA' ? fornecedor : cliente}
-                      onChange={(e) => (tipo === 'DESPESA' ? setFornecedor(e.target.value) : setCliente(e.target.value))}
-                      className={inputClass}
+                    <ComboboxContato
+                      valor={tipo === 'DESPESA' ? fornecedor : cliente}
+                      onChange={(v) => (tipo === 'DESPESA' ? setFornecedor(v) : setCliente(v))}
+                      opcoes={fornecedores
+                        .filter((f) => f.ativo && (tipo === 'DESPESA' ? f.relacao !== 'Cliente' : f.relacao === 'Cliente' || f.relacao === 'Ambos'))
+                        .map((f) => f.nome)}
+                      placeholder="Digite pra buscar ou escolher"
+                      inputClass={inputClass}
                     />
-                    <datalist id="sugestoes-fornecedores">
-                      {fornecedores
-                        .filter((f) => f.ativo && f.relacao !== 'Cliente')
-                        .map((f) => <option key={f.id} value={f.nome} />)}
-                    </datalist>
-                    <datalist id="sugestoes-clientes">
-                      {fornecedores
-                        .filter((f) => f.ativo && (f.relacao === 'Cliente' || f.relacao === 'Ambos'))
-                        .map((f) => <option key={f.id} value={f.nome} />)}
-                    </datalist>
+                    <p className="text-[11px] text-stone-400 mt-1">
+                      Pra cadastrar um fornecedor/cliente novo de forma permanente, vá em Compras & Estoque → Fornecedores.
+                    </p>
                   </div>
                 )}
 
@@ -548,6 +542,76 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
           </div>
         </form>
       </div>
+    </div>
+  );
+};
+
+// Campo de texto que também funciona como lista: digita e filtra as opções
+// já cadastradas, ou clica pra escolher direto. Se o texto não bater com
+// nenhuma opção, mantém o que foi digitado (permite nome novo, avulso).
+const ComboboxContato: React.FC<{
+  valor: string;
+  onChange: (v: string) => void;
+  opcoes: string[];
+  placeholder?: string;
+  inputClass: string;
+}> = ({ valor, onChange, opcoes, placeholder, inputClass }) => {
+  const [aberto, setAberto] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtradas = valor.trim()
+    ? opcoes.filter((o) => o.toLowerCase().includes(valor.trim().toLowerCase()))
+    : opcoes;
+
+  useEffect(() => {
+    const fecharSeClicarFora = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setAberto(false);
+      }
+    };
+    document.addEventListener('mousedown', fecharSeClicarFora);
+    return () => document.removeEventListener('mousedown', fecharSeClicarFora);
+  }, []);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div className="relative">
+        <input
+          type="text"
+          value={valor}
+          placeholder={placeholder}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setAberto(true);
+          }}
+          onFocus={() => setAberto(true)}
+          className={`${inputClass} pr-7`}
+        />
+        <ChevronDown
+          className="w-3.5 h-3.5 text-stone-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+        />
+      </div>
+      {aberto && opcoes.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-stone-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+          {filtradas.length === 0 ? (
+            <p className="px-3 py-2 text-stone-400">Nenhum cadastrado com esse nome — pode usar o texto digitado.</p>
+          ) : (
+            filtradas.map((nome) => (
+              <button
+                key={nome}
+                type="button"
+                onClick={() => {
+                  onChange(nome);
+                  setAberto(false);
+                }}
+                className="w-full text-left px-3 py-2 hover:bg-stone-50 text-stone-700"
+              >
+                {nome}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 };
