@@ -307,6 +307,22 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
             />
           </div>
 
+          {/* Fornecedor / Cliente — sempre visível, é usado quase todo lançamento */}
+          {tipo !== 'TRANSFERENCIA' && (
+            <div>
+              <label className={labelClass}>{tipo === 'DESPESA' ? 'Fornecedor' : 'Cliente / pagador'}</label>
+              <ComboboxContato
+                valor={tipo === 'DESPESA' ? fornecedor : cliente}
+                onChange={(v) => (tipo === 'DESPESA' ? setFornecedor(v) : setCliente(v))}
+                opcoes={fornecedores
+                  .filter((f) => f.ativo && (tipo === 'DESPESA' ? f.relacao !== 'Cliente' : f.relacao === 'Cliente' || f.relacao === 'Ambos'))
+                  .map((f) => f.nome)}
+                placeholder="Digite pra buscar ou escolher (opcional)"
+                inputClass={inputClass}
+              />
+            </div>
+          )}
+
           {/* Meio de pagamento (despesa) */}
           {tipo === 'DESPESA' && (
             <div className="space-y-2 bg-stone-50 p-3 rounded-xl border border-stone-200/80">
@@ -453,24 +469,6 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
                   <p className="text-[11px] text-stone-500 mt-1">Mês a que o lançamento pertence, se diferente do vencimento.</p>
                 </div>
 
-                {tipo !== 'TRANSFERENCIA' && (
-                  <div>
-                    <label className={labelClass}>{tipo === 'DESPESA' ? 'Fornecedor' : 'Cliente / pagador'}</label>
-                    <ComboboxContato
-                      valor={tipo === 'DESPESA' ? fornecedor : cliente}
-                      onChange={(v) => (tipo === 'DESPESA' ? setFornecedor(v) : setCliente(v))}
-                      opcoes={fornecedores
-                        .filter((f) => f.ativo && (tipo === 'DESPESA' ? f.relacao !== 'Cliente' : f.relacao === 'Cliente' || f.relacao === 'Ambos'))
-                        .map((f) => f.nome)}
-                      placeholder="Digite pra buscar ou escolher"
-                      inputClass={inputClass}
-                    />
-                    <p className="text-[11px] text-stone-400 mt-1">
-                      Pra cadastrar um fornecedor/cliente novo de forma permanente, vá em Compras & Estoque → Fornecedores.
-                    </p>
-                  </div>
-                )}
-
                 {tipo === 'DESPESA' && (
                   <label className="flex items-center justify-between gap-2 cursor-pointer">
                     <span className="inline-flex items-center gap-2 font-bold text-stone-700">
@@ -591,9 +589,13 @@ const ComboboxContato: React.FC<{
           className="w-3.5 h-3.5 text-stone-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
         />
       </div>
-      {aberto && opcoes.length > 0 && (
+      {aberto && (
         <div className="absolute z-20 mt-1 w-full bg-white border border-stone-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-          {filtradas.length === 0 ? (
+          {opcoes.length === 0 ? (
+            <p className="px-3 py-2 text-stone-400">
+              Nenhum cadastrado ainda. Pode digitar um nome avulso aqui, ou cadastrar em Compras & Estoque → Fornecedores.
+            </p>
+          ) : filtradas.length === 0 ? (
             <p className="px-3 py-2 text-stone-400">Nenhum cadastrado com esse nome — pode usar o texto digitado.</p>
           ) : (
             filtradas.map((nome) => (
