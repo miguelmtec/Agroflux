@@ -143,6 +143,7 @@ interface FinanceContextType {
   updateDespesa: (id: string, despesa: Partial<Despesa>) => void;
   deleteDespesa: (id: string) => void;
   marcarDespesaPaga: (id: string, dataPagamento?: string, contaId?: string) => void;
+  atribuirCartaoDespesa: (id: string, cartaoId: string) => void;
 
   addTransferencia: (transf: Omit<Transferencia, 'id' | 'criadoEm' | 'criadoPor'>) => void;
   adjustContaSaldo: (contaId: string, novoSaldo: number, justificativa: string) => void;
@@ -778,6 +779,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             `Despesa "${d.descricao}" marcada como PAGA. Valor: R$ ${d.valor.toLocaleString('pt-BR')}`
           );
           return updated;
+        }
+        return d;
+      })
+    );
+  };
+
+  // Usada quando a despesa vai ser paga no cartão em vez de sair direto da
+  // conta: fica "A pagar" até a fatura do cartão ser quitada (é lá que
+  // marcarDespesaPaga acontece de fato, via pagarFaturaCartao).
+  const atribuirCartaoDespesa = (id: string, cartaoId: string) => {
+    setDespesas((prev) =>
+      prev.map((d) => {
+        if (d.id === id) {
+          addAuditLog('EDITAR', 'Despesa', id, `Despesa "${d.descricao}" atribuída ao cartão para pagamento na próxima fatura.`);
+          return { ...d, cartaoId, contaId: undefined };
         }
         return d;
       })
@@ -1747,6 +1763,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateDespesa,
         deleteDespesa,
         marcarDespesaPaga,
+        atribuirCartaoDespesa,
         addTransferencia,
         adjustContaSaldo,
         addConta,

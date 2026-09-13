@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDate, getDaysDifference } from '../utils/formatters';
+import { NovoLancamentoModal } from './NovoLancamentoModal';
+import { ModalRegistrarPagamento } from './ModalRegistrarPagamento';
 import {
   ArrowDownCircle,
   Clock,
@@ -12,10 +14,15 @@ import {
   Tag,
   User,
   Check,
+  X,
+  CreditCard,
+  Plus,
 } from 'lucide-react';
 
 export const ContasPagarView: React.FC = () => {
-  const { despesas, integrantes, contas, selectedMemberId, marcarDespesaPaga } = useFinance();
+  const { despesas, integrantes, contas, cartoes, selectedMemberId, marcarDespesaPaga, atribuirCartaoDespesa } = useFinance();
+  const [despesaPagando, setDespesaPagando] = useState<any>(null);
+  const [showNovaDespesa, setShowNovaDespesa] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'TODAS' | 'HOJE' | '7DIAS' | '30DIAS' | 'ATRASADAS' | 'FUTURAS'>('TODAS');
   const [filterCategoria, setFilterCategoria] = useState<string>('TODAS');
@@ -81,10 +88,22 @@ export const ContasPagarView: React.FC = () => {
             Controle de compromissos, vencimentos e contas bancárias de liquidação
           </p>
         </div>
-        <div className="text-xs font-bold text-stone-700 bg-stone-100 px-3 py-1.5 rounded-xl">
-          Total da listagem: <span className="text-stone-950 font-extrabold">{formatCurrency(totalValor)}</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNovaDespesa(true)}
+            className="flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-colors shadow-2xs"
+          >
+            <Plus className="w-4 h-4" /> Nova Conta a Pagar
+          </button>
+          <div className="text-xs font-bold text-stone-700 bg-stone-100 px-3 py-1.5 rounded-xl">
+            Total da listagem: <span className="text-stone-950 font-extrabold">{formatCurrency(totalValor)}</span>
+          </div>
         </div>
       </div>
+
+      {showNovaDespesa && (
+        <NovoLancamentoModal isOpen={showNovaDespesa} onClose={() => setShowNovaDespesa(false)} tipoFixo="DESPESA" />
+      )}
 
       {/* Tabs Row (Section 13) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -310,7 +329,7 @@ export const ContasPagarView: React.FC = () => {
                       <td className="py-3.5 px-4 text-right sticky right-0 bg-white group-hover:bg-stone-50/95 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)] z-10 w-28">
                         {d.status !== 'Pago' && (
                           <button
-                            onClick={() => marcarDespesaPaga(d.id)}
+                            onClick={() => setDespesaPagando(d)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3 py-1 rounded-lg transition-colors inline-flex items-center gap-1 shadow-2xs cursor-pointer"
                           >
                             <Check className="w-3.5 h-3.5" /> Pagar
@@ -325,6 +344,24 @@ export const ContasPagarView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {despesaPagando && (
+        <ModalRegistrarPagamento
+          despesa={despesaPagando}
+          contas={contas}
+          cartoes={cartoes}
+          onClose={() => setDespesaPagando(null)}
+          onConfirmarConta={(data, contaId) => {
+            marcarDespesaPaga(despesaPagando.id, data, contaId);
+            setDespesaPagando(null);
+          }}
+          onConfirmarCartao={(cartaoId) => {
+            atribuirCartaoDespesa(despesaPagando.id, cartaoId);
+            setDespesaPagando(null);
+          }}
+        />
+      )}
     </div>
   );
 };
+

@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDate, getDaysDifference } from '../utils/formatters';
-import { ArrowUpCircle, CheckCircle2, Filter, Check } from 'lucide-react';
+import { NovoLancamentoModal } from './NovoLancamentoModal';
+import { ModalRegistrarRecebimento } from './ModalRegistrarRecebimento';
+import { ArrowUpCircle, CheckCircle2, Filter, Check, X, Plus } from 'lucide-react';
 
 export const ContasReceberView: React.FC = () => {
   const { receitas, integrantes, contas, selectedMemberId, marcarReceitaRecebida } = useFinance();
+  const [receitaRecebendo, setReceitaRecebendo] = useState<any>(null);
+  const [showNovaReceita, setShowNovaReceita] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'TODAS' | 'HOJE' | '7DIAS' | '30DIAS' | 'ATRASADAS' | 'RECEBIDAS'>('TODAS');
 
@@ -54,10 +58,22 @@ export const ContasReceberView: React.FC = () => {
             Controle de créditos agrícolas, contratos de arrendamento, safras e dividendos
           </p>
         </div>
-        <div className="text-xs font-bold text-stone-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-          Total da listagem: <span className="text-emerald-800 font-extrabold">{formatCurrency(totalValor)}</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNovaReceita(true)}
+            className="flex items-center gap-1.5 bg-stone-900 hover:bg-stone-800 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-colors shadow-2xs"
+          >
+            <Plus className="w-4 h-4" /> Nova Conta a Receber
+          </button>
+          <div className="text-xs font-bold text-stone-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+            Total da listagem: <span className="text-emerald-800 font-extrabold">{formatCurrency(totalValor)}</span>
+          </div>
         </div>
       </div>
+
+      {showNovaReceita && (
+        <NovoLancamentoModal isOpen={showNovaReceita} onClose={() => setShowNovaReceita(false)} tipoFixo="RECEITA" />
+      )}
 
       {/* Tabs Row (Section 14) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -233,7 +249,7 @@ export const ContasReceberView: React.FC = () => {
                       <td className="py-3.5 px-4 text-right sticky right-0 bg-white group-hover:bg-stone-50/95 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)] z-10 w-28">
                         {r.status !== 'Recebida' && (
                           <button
-                            onClick={() => marcarReceitaRecebida(r.id)}
+                            onClick={() => setReceitaRecebendo(r)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3 py-1 rounded-lg transition-colors inline-flex items-center gap-1 shadow-2xs cursor-pointer"
                           >
                             <Check className="w-3.5 h-3.5" /> Receber
@@ -248,6 +264,19 @@ export const ContasReceberView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {receitaRecebendo && (
+        <ModalRegistrarRecebimento
+          receita={receitaRecebendo}
+          contas={contas}
+          onClose={() => setReceitaRecebendo(null)}
+          onConfirmar={(data, contaId) => {
+            marcarReceitaRecebida(receitaRecebendo.id, data, contaId);
+            setReceitaRecebendo(null);
+          }}
+        />
+      )}
     </div>
   );
 };
+

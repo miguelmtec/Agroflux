@@ -12,6 +12,8 @@ import { TransacoesView } from './components/TransacoesView';
 import { AgendaView } from './components/AgendaView';
 import { ContasPagarView } from './components/ContasPagarView';
 import { ContasReceberView } from './components/ContasReceberView';
+import { BaixaContasPagarView } from './components/BaixaContasPagarView';
+import { BaixaContasReceberView } from './components/BaixaContasReceberView';
 import { BancosView } from './components/BancosView';
 import { CartoesView } from './components/CartoesView';
 import { EmprestimosView } from './components/EmprestimosView';
@@ -113,6 +115,10 @@ const MainAppContent: React.FC = () => {
         return <ContasPagarView />;
       case 'contas-receber':
         return <ContasReceberView />;
+      case 'baixa-contas-pagar':
+        return <BaixaContasPagarView />;
+      case 'baixa-contas-receber':
+        return <BaixaContasReceberView />;
       case 'bancos':
         return <BancosView />;
       case 'cartoes':

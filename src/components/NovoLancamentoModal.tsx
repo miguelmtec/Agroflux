@@ -14,13 +14,13 @@ import {
 interface NovoLancamentoModalProps {
   isOpen: boolean;
   onClose: () => void;
+  tipoFixo?: 'DESPESA' | 'RECEITA';
 }
 
-export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen, onClose }) => {
+export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen, onClose, tipoFixo }) => {
   const { integrantes, fazendas, contas, cartoes, categoriasPlanoContas, selectedMemberId, fornecedores, addDespesa, addReceita, addTransferencia } = useFinance();
 
-  const [tipo, setTipo] = useState<'DESPESA' | 'RECEITA' | 'TRANSFERENCIA'>('DESPESA');
-  const [meioPagamento, setMeioPagamento] = useState<'A_DEFINIR' | 'CONTA' | 'CARTAO'>('A_DEFINIR');
+  const [tipo, setTipo] = useState<'DESPESA' | 'RECEITA' | 'TRANSFERENCIA'>(tipoFixo || 'DESPESA');
   const [showMais, setShowMais] = useState(false);
 
   // Common fields
@@ -35,11 +35,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
   );
   const [fazendaId, setFazendaId] = useState('');
   const [contaId, setContaId] = useState('');
-  const [cartaoId, setCartaoId] = useState(cartoes[0]?.id || '');
   const [fornecedor, setFornecedor] = useState('');
   const [cliente, setCliente] = useState('');
   const [observacao, setObservacao] = useState('');
-  const [jaPago, setJaPago] = useState(false);
 
   // Installments
   const [isParcelado, setIsParcelado] = useState(false);
@@ -59,6 +57,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
   // atualmente selecionado no topo (se houver um específico), toda vez que o modal abre
   useEffect(() => {
     if (!isOpen) return;
+    if (tipoFixo && tipo !== tipoFixo) {
+      setTipo(tipoFixo);
+    }
     if (!categoria) {
       const primeira = categoriasPlanoContas.find((c) => c.tipo === tipo && c.ativa);
       if (primeira) setCategoria(primeira.nome);
@@ -75,18 +76,11 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
   // Se a conta ou cartão escolhido tiver um titular vinculado, o lançamento
   // já "casa" automaticamente com esse integrante, sem precisar escolher de novo.
   useEffect(() => {
-    if (tipo === 'TRANSFERENCIA') return;
-    let vinculoId: string | undefined;
-    if (meioPagamento === 'CONTA' && contaId) {
-      vinculoId = contas.find((c) => c.id === contaId)?.integranteId;
-    } else if (meioPagamento === 'CARTAO' && cartaoId) {
-      vinculoId = cartoes.find((c) => c.id === cartaoId)?.integranteId;
-    } else if (tipo === 'RECEITA' && contaId) {
-      vinculoId = contas.find((c) => c.id === contaId)?.integranteId;
-    }
+    if (tipo !== 'TRANSFERENCIA' || !contaId) return;
+    const vinculoId = contas.find((c) => c.id === contaId)?.integranteId;
     if (vinculoId) setIntegranteId(vinculoId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contaId, cartaoId, meioPagamento, tipo]);
+  }, [contaId, tipo]);
 
   const mostrarIntegrante = integrantes.length > 1;
   const mostrarFazenda = fazendas.length >= 1;
@@ -134,11 +128,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
         valor: val,
         dataCompetencia,
         dataPrevista: dataVencimento,
-        dataRecebimento: jaPago ? dataVencimento : undefined,
-        status: jaPago ? 'Recebida' : 'Prevista',
+        status: 'Prevista',
         integranteId,
         fazendaId: fazendaId || undefined,
-        contaId: contaId || undefined,
         clientePagador: cliente,
         observacao,
         anexos: anexoNome ? [anexoNome] : [],
@@ -147,12 +139,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
       return;
     }
 
-    // DESPESA (normal ou parcelada)
-    if (jaPago && meioPagamento === 'A_DEFINIR') {
-      alert('Como a despesa já foi paga, selecione a conta bancária ou cartão utilizado para liquidação.');
-      return;
-    }
-
+    // DESPESA (normal ou parcelada) — nasce sempre "A pagar"; a forma de
+    // pagamento só é escolhida depois, na tela de Contas a Pagar, na hora
+    // de dar baixa de verdade.
     const nParcelas = isParcelado ? Math.max(1, parseInt(totalParcelas, 10)) : 1;
     const valorPorParcela = val / nParcelas;
 
@@ -168,12 +157,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
         valor: valorPorParcela,
         dataCompetencia,
         dataVencimento: vencStr,
-        dataPagamento: jaPago && i === 1 ? dataVencimento : undefined,
-        status: jaPago && i === 1 ? 'Pago' : 'A pagar',
+        status: 'A pagar',
         integranteId,
         fazendaId: fazendaId || undefined,
-        contaId: meioPagamento === 'CONTA' && contaId ? contaId : undefined,
-        cartaoId: meioPagamento === 'CARTAO' && cartaoId ? cartaoId : undefined,
         fornecedor,
         parcelaAtual: isParcelado ? i : undefined,
         totalParcelas: isParcelado ? nParcelas : undefined,
@@ -194,7 +180,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
         <div className="p-4 bg-stone-900 text-white flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-emerald-400" />
-            <h2 className="font-extrabold text-sm tracking-tight">Novo lançamento</h2>
+            <h2 className="font-extrabold text-sm tracking-tight">
+              {tipoFixo === 'DESPESA' ? 'Nova Conta a Pagar' : tipoFixo === 'RECEITA' ? 'Nova Conta a Receber' : 'Novo lançamento'}
+            </h2>
           </div>
           <button onClick={onClose} className="text-stone-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -202,7 +190,8 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
-          {/* Tipo */}
+          {/* Tipo — só aparece se não veio fixo de uma tela específica (Contas a Pagar/Receber) */}
+          {!tipoFixo && (
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
@@ -240,6 +229,7 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
               <ArrowLeftRight className="w-4 h-4" /> Transferência
             </button>
           </div>
+          )}
 
           {/* Descrição & Valor */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -323,73 +313,6 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
             </div>
           )}
 
-          {/* Meio de pagamento (despesa) */}
-          {tipo === 'DESPESA' && (
-            <div className="space-y-2 bg-stone-50 p-3 rounded-xl border border-stone-200/80">
-              <span className="font-bold text-stone-800">Como vai pagar?</span>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setMeioPagamento('A_DEFINIR'); setContaId(''); }}
-                  className={`py-2 rounded-lg border text-xs font-bold transition-all ${
-                    meioPagamento === 'A_DEFINIR' ? 'border-amber-500 bg-amber-50 text-amber-950' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-100'
-                  }`}
-                >
-                  Depois
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setMeioPagamento('CONTA'); if (!contaId) setContaId(contas[0]?.id || ''); }}
-                  className={`py-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1 transition-all ${
-                    meioPagamento === 'CONTA' ? 'border-emerald-600 bg-emerald-50 text-emerald-950' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-100'
-                  }`}
-                >
-                  <Building2 className="w-3.5 h-3.5" /> Conta
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setMeioPagamento('CARTAO'); if (!cartaoId) setCartaoId(cartoes[0]?.id || ''); }}
-                  className={`py-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1 transition-all ${
-                    meioPagamento === 'CARTAO' ? 'border-purple-600 bg-purple-50 text-purple-950' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-100'
-                  }`}
-                >
-                  <CreditCard className="w-3.5 h-3.5" /> Cartão
-                </button>
-              </div>
-
-              {meioPagamento === 'CONTA' && (
-                <select value={contaId} onChange={(e) => setContaId(e.target.value)} className={`${inputClass} bg-white`}>
-                  {contas.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nomePersonalizado} ({c.banco})</option>
-                  ))}
-                </select>
-              )}
-              {meioPagamento === 'CARTAO' && (
-                <select value={cartaoId} onChange={(e) => setCartaoId(e.target.value)} className={`${inputClass} bg-white`}>
-                  {cartoes.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nome} (final {c.ultimosDigitos})</option>
-                  ))}
-                </select>
-              )}
-              {meioPagamento === 'A_DEFINIR' && (
-                <p className="text-[11px] text-stone-500">Fica em "A pagar" sem conta vinculada até você marcar como pago.</p>
-              )}
-            </div>
-          )}
-
-          {/* Conta de depósito (receita) */}
-          {tipo === 'RECEITA' && (
-            <div>
-              <label className={labelClass}>Conta para receber</label>
-              <select value={contaId} onChange={(e) => setContaId(e.target.value)} className={`${inputClass} bg-white`}>
-                <option value="">A definir no recebimento</option>
-                {contas.map((c) => (
-                  <option key={c.id} value={c.id}>{c.nomePersonalizado} ({c.banco})</option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* Contas de transferência */}
           {tipo === 'TRANSFERENCIA' && (
             <div className="grid grid-cols-2 gap-3">
@@ -412,26 +335,12 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
             </div>
           )}
 
-          {/* Já pago/recebido */}
           {tipo !== 'TRANSFERENCIA' && (
-            <label className="inline-flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={jaPago}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setJaPago(checked);
-                  if (checked && meioPagamento === 'A_DEFINIR') {
-                    setMeioPagamento('CONTA');
-                    setContaId(contas[0]?.id || '');
-                  }
-                }}
-                className="rounded text-emerald-600"
-              />
-              <span className="font-semibold text-stone-800">
-                {tipo === 'DESPESA' ? 'Já foi pago' : 'Já foi recebido'}
-              </span>
-            </label>
+            <p className="text-[11px] text-stone-400 -mt-1">
+              {tipo === 'DESPESA'
+                ? 'Fica em "Contas a Pagar" — a forma de pagamento (conta, cartão, etc) você escolhe lá na hora de dar baixa.'
+                : 'Fica em "Contas a Receber" — você marca como recebido, e escolhe a conta, lá na hora.'}
+            </p>
           )}
 
           {/* Mais opções */}
