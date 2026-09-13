@@ -189,9 +189,9 @@ export const NovoLancamentoModal: React.FC<NovoLancamentoModalProps> = ({ isOpen
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-lg overflow-hidden my-6">
+      <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 w-full max-w-lg my-6">
         {/* Header */}
-        <div className="p-4 bg-stone-900 text-white flex items-center justify-between">
+        <div className="p-4 bg-stone-900 text-white flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-emerald-400" />
             <h2 className="font-extrabold text-sm tracking-tight">Novo lançamento</h2>
